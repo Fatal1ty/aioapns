@@ -120,7 +120,7 @@ class APNsBaseClientProtocol(H2Protocol):
         ]
         if request.time_to_live is not None:
             expiration = int(time.time()) + request.time_to_live
-            headers.append(('apns-expiration', expiration))
+            headers.append(('apns-expiration', str(expiration)))
 
         self.conn.send_headers(
             stream_id=stream_id,
