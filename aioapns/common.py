@@ -2,16 +2,21 @@ import asyncio
 from uuid import uuid4
 
 
+PRIORITY_NORMAL = '5'
+PRIORITY_HIGH = '10'
+
+
 class NotificationRequest:
     __slots__ = ('device_token', 'message', 'notification_id',
-                 'time_to_live', 'collapse_key')
+                 'time_to_live', 'priority', 'collapse_key')
 
     def __init__(self, device_token, message, notification_id=None,
-                 time_to_live=None, collapse_key=None):
+                 time_to_live=None, priority=None, collapse_key=None):
         self.device_token = device_token
         self.message = message
         self.notification_id = notification_id or str(uuid4())
         self.time_to_live = time_to_live
+        self.priority = priority
         self.collapse_key = collapse_key
 
 

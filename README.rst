@@ -32,6 +32,8 @@ Features
 
 * Internal connection pool which adapts to the current load
 * Ability to set TTL (time to live) for notifications
+* Ability to set priority for messages
+* Ability to set collapse_key for messages
 
 
 Installation
