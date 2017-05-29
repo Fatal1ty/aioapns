@@ -3,14 +3,16 @@ from uuid import uuid4
 
 
 class NotificationRequest:
-    __slots__ = ('device_token', 'message', 'notification_id', 'time_to_live')
+    __slots__ = ('device_token', 'message', 'notification_id',
+                 'time_to_live', 'collapse_key')
 
     def __init__(self, device_token, message, notification_id=None,
-                 time_to_live=None):
+                 time_to_live=None, collapse_key=None):
         self.device_token = device_token
         self.message = message
         self.notification_id = notification_id or str(uuid4())
         self.time_to_live = time_to_live
+        self.collapse_key = collapse_key
 
 
 class NotificationResult:
