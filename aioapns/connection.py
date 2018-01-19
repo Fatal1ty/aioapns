@@ -245,7 +245,7 @@ class APNsConnectionPool:
         self.max_connections = max_connections
         self.loop = loop or asyncio.get_event_loop()
         self.connections = []
-        self._lock = asyncio.Lock()
+        self._lock = asyncio.Lock(loop=self.loop)
 
         with open(self.cert_file, 'rb') as f:
             body = f.read()
