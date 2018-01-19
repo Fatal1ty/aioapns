@@ -270,6 +270,10 @@ class APNsConnectionPool:
                     len(self.connections) + 1)
         return protocol
 
+    def close(self):
+        for connection in self.connections:
+            connection.close()
+
     def discard_connection(self, connection):
         logger.debug('Connection %s discarded', connection)
         self.connections.remove(connection)
