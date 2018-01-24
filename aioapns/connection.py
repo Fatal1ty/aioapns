@@ -89,13 +89,15 @@ class H2Protocol(asyncio.Protocol):
 
 
 class APNsBaseClientProtocol(H2Protocol):
-    APNS_SERVER = 'api.push.apple.com'
+    APNS_SERVER_PROD = 'api.push.apple.com'
+    APNS_SERVER_DEV = 'api.development.push.apple.com'
     INACTIVITY_TIME = 10
 
-    def __init__(self, apns_topic, loop=None, on_connection_lost=None):
+    def __init__(self, apns_topic, apns_server, loop=None, on_connection_lost=None):
         super(APNsBaseClientProtocol, self).__init__()
         self.apns_topic = apns_topic
         self.loop = loop or asyncio.get_event_loop()
+        self.apns_server = apns_server
         self.on_connection_lost = on_connection_lost
 
         self.requests = {}
@@ -114,7 +116,7 @@ class APNsBaseClientProtocol(H2Protocol):
             (':method', 'POST'),
             (':scheme', 'https'),
             (':path', '/3/device/%s' % request.device_token),
-            ('host', self.APNS_SERVER),
+            ('host', self.apns_server),
             ('apns-id', request.notification_id),
             ('apns-topic', self.apns_topic)
         ]
@@ -225,7 +227,8 @@ class APNsBaseClientProtocol(H2Protocol):
 
 
 class APNsTLSClientProtocol(APNsBaseClientProtocol):
-    APNS_SERVER = 'api.push.apple.com'
+    APNS_SERVER_PROD = 'api.push.apple.com'
+    APNS_SERVER_DEV = 'api.development.push.apple.com'
     APNS_PORT = 443
 
     def close(self):
@@ -238,8 +241,10 @@ class APNsTLSClientProtocol(APNsBaseClientProtocol):
 class APNsConnectionPool:
     MAX_ATTEMPTS = 10
 
-    def __init__(self, cert_file, max_connections=10, loop=None):
+    def __init__(self, cert_file, cert_prod, max_connections=10, loop=None):
         self.cert_file = cert_file
+        self.cert_prod = cert_prod
+        self.apns_server_url = APNsTLSClientProtocol.APNS_SERVER_PROD
         self.ssl_context = SSLContext()
         self.ssl_context.load_cert_chain(cert_file)
         self.max_connections = max_connections
@@ -255,14 +260,19 @@ class APNsConnectionPool:
             self.apns_topic = cert.get_subject().UID
 
     async def connect(self):
+
+        if not self.cert_prod:
+            self.apns_server_url = APNsTLSClientProtocol.APNS_SERVER_DEV
+
         _, protocol = await self.loop.create_connection(
             protocol_factory=partial(
                 APNsTLSClientProtocol,
                 self.apns_topic,
+                self.apns_server_url,
                 self.loop,
                 self.discard_connection
             ),
-            host=APNsTLSClientProtocol.APNS_SERVER,
+            host=self.apns_server_url,
             port=APNsTLSClientProtocol.APNS_PORT,
             ssl=self.ssl_context
         )

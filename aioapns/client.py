@@ -3,8 +3,8 @@ from aioapns.logging import logger
 
 
 class APNs:
-    def __init__(self, client_cert, max_connections=10, loop=None):
-        self.pool = APNsConnectionPool(client_cert, max_connections, loop)
+    def __init__(self, client_cert, max_connections=10, loop=None, cert_prod=True):
+        self.pool = APNsConnectionPool(client_cert, cert_prod, max_connections, loop)
 
     async def send_notification(self, request):
         response = await self.pool.send_notification(request)
