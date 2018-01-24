@@ -225,7 +225,6 @@ class APNsBaseClientProtocol(H2Protocol):
 
 
 class APNsTLSClientProtocol(APNsBaseClientProtocol):
-    APNS_SERVER = 'api.push.apple.com'
     APNS_PORT = 443
 
     def close(self):
@@ -235,14 +234,29 @@ class APNsTLSClientProtocol(APNsBaseClientProtocol):
         self.transport._ssl_protocol._transport.close()
 
 
+class APNsProductionClientProtocol(APNsTLSClientProtocol):
+    APNS_SERVER = 'api.push.apple.com'
+
+
+class APNsDevelopmentClientProtocol(APNsTLSClientProtocol):
+    APNS_SERVER = 'api.development.push.apple.com'
+
+
 class APNsConnectionPool:
     MAX_ATTEMPTS = 10
 
-    def __init__(self, cert_file, max_connections=10, loop=None):
+    def __init__(self, cert_file, max_connections=10, loop=None,
+                 use_sandbox=False):
         self.cert_file = cert_file
         self.ssl_context = SSLContext()
         self.ssl_context.load_cert_chain(cert_file)
         self.max_connections = max_connections
+
+        if use_sandbox:
+            self.protocol_class = APNsDevelopmentClientProtocol
+        else:
+            self.protocol_class = APNsProductionClientProtocol
+
         self.loop = loop or asyncio.get_event_loop()
         self.connections = []
         self._lock = asyncio.Lock(loop=self.loop)
@@ -257,13 +271,13 @@ class APNsConnectionPool:
     async def connect(self):
         _, protocol = await self.loop.create_connection(
             protocol_factory=partial(
-                APNsTLSClientProtocol,
+                self.protocol_class,
                 self.apns_topic,
                 self.loop,
                 self.discard_connection
             ),
-            host=APNsTLSClientProtocol.APNS_SERVER,
-            port=APNsTLSClientProtocol.APNS_PORT,
+            host=self.protocol_class.APNS_SERVER,
+            port=self.protocol_class.APNS_PORT,
             ssl=self.ssl_context
         )
         logger.info('Connection established (total: %d)',
