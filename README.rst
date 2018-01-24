@@ -38,6 +38,7 @@ Features
 * Ability to set TTL (time to live) for notifications
 * Ability to set priority for notifications
 * Ability to set collapse-key for notifications
+* Ability to use production or development APNs server
 
 
 Installation
@@ -58,7 +59,7 @@ Basic Usage
 
 
     async def run():
-        apns = APNs('/path/to/apns-production-cert.pem')
+        apns = APNs('/path/to/apns-production-cert.pem', use_sandbox=False)
         request = NotificationRequest(
             device_token='<DEVICE_TOKEN>',
             message = {
