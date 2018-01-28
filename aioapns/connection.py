@@ -196,7 +196,14 @@ class APNsBaseClientProtocol(H2Protocol):
             self.request_statuses[notification_id] = status
 
     def on_data_received(self, data, stream_id):
-        data = json.loads(data)
+        try:
+            if isinstance(data, bytes):
+                data = json.loads(data.decode("utf-8"))
+            else:
+                data = json.loads(data)
+        except:
+            logger.exception('on_data_received: ' + str(data))
+            return
         reason = data.get('reason', '')
         if not reason:
             return
