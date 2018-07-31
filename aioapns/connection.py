@@ -5,14 +5,15 @@ from ssl import SSLContext
 from functools import partial
 
 import OpenSSL
+import jwt
 from h2.connection import H2Connection
 from h2.events import ResponseReceived, DataReceived, RemoteSettingsChanged,\
     StreamEnded, ConnectionTerminated, WindowUpdated
 from h2.exceptions import NoAvailableStreamIDError, FlowControlError
 from h2.settings import SettingCodes
 
-from aioapns.common import NotificationResult, DynamicBoundedSemaphore,\
-    APNS_RESPONSE_CODE
+from aioapns.common import NotificationResult, DynamicBoundedSemaphore, \
+    APNS_RESPONSE_CODE, wrap_private_key
 from aioapns.exceptions import ConnectionClosed
 from aioapns.logging import logger
 
@@ -92,9 +93,10 @@ class APNsBaseClientProtocol(H2Protocol):
     APNS_SERVER = 'api.push.apple.com'
     INACTIVITY_TIME = 10
 
-    def __init__(self, apns_topic, loop=None, on_connection_lost=None):
+    def __init__(self, apns_topic, auth_token=None, loop=None, on_connection_lost=None):
         super(APNsBaseClientProtocol, self).__init__()
         self.apns_topic = apns_topic
+        self.auth_token = auth_token
         self.loop = loop or asyncio.get_event_loop()
         self.on_connection_lost = on_connection_lost
 
@@ -118,6 +120,10 @@ class APNsBaseClientProtocol(H2Protocol):
             ('apns-id', request.notification_id),
             ('apns-topic', self.apns_topic)
         ]
+
+        if self.auth_token:
+            headers.append(('authorization', 'bearer {0}'.format(self.auth_token.decode('ascii'))))
+
         if request.time_to_live is not None:
             expiration = int(time.time()) + request.time_to_live
             headers.append(('apns-expiration', str(expiration)))
@@ -242,14 +248,10 @@ class APNsDevelopmentClientProtocol(APNsTLSClientProtocol):
     APNS_SERVER = 'api.development.push.apple.com'
 
 
-class APNsConnectionPool:
+class APNsBaseConnectionPool:
     MAX_ATTEMPTS = 10
 
-    def __init__(self, cert_file, max_connections=10, loop=None,
-                 use_sandbox=False):
-        self.cert_file = cert_file
-        self.ssl_context = SSLContext()
-        self.ssl_context.load_cert_chain(cert_file)
+    def __init__(self, max_connections=10, loop=None, use_sandbox=False):
         self.max_connections = max_connections
 
         if use_sandbox:
@@ -261,28 +263,8 @@ class APNsConnectionPool:
         self.connections = []
         self._lock = asyncio.Lock(loop=self.loop)
 
-        with open(self.cert_file, 'rb') as f:
-            body = f.read()
-            cert = OpenSSL.crypto.load_certificate(
-                OpenSSL.crypto.FILETYPE_PEM, body
-            )
-            self.apns_topic = cert.get_subject().UID
-
     async def connect(self):
-        _, protocol = await self.loop.create_connection(
-            protocol_factory=partial(
-                self.protocol_class,
-                self.apns_topic,
-                self.loop,
-                self.discard_connection
-            ),
-            host=self.protocol_class.APNS_SERVER,
-            port=self.protocol_class.APNS_PORT,
-            ssl=self.ssl_context
-        )
-        logger.info('Connection established (total: %d)',
-                    len(self.connections) + 1)
-        return protocol
+        raise NotImplementedError
 
     def close(self):
         for connection in self.connections:
@@ -342,3 +324,81 @@ class APNsConnectionPool:
                 logger.debug('Got FlowControlError for notification %s',
                              request.notification_id)
                 await asyncio.sleep(1)
+
+
+class APNsCertConnectionPool(APNsBaseConnectionPool):
+
+    def __init__(self, cert_file, max_connections=10, loop=None,
+                 use_sandbox=False):
+        self.cert_file = cert_file
+        self.ssl_context = SSLContext()
+        self.ssl_context.load_cert_chain(cert_file)
+
+        super(APNsCertConnectionPool, self).__init__(
+            max_connections=max_connections,
+            loop=loop,
+            use_sandbox=use_sandbox
+        )
+
+        with open(self.cert_file, 'rb') as f:
+            body = f.read()
+            cert = OpenSSL.crypto.load_certificate(
+                OpenSSL.crypto.FILETYPE_PEM, body
+            )
+            self.apns_topic = cert.get_subject().UID
+
+    async def connect(self):
+        _, protocol = await self.loop.create_connection(
+            protocol_factory=partial(
+                self.protocol_class,
+                self.apns_topic,
+                None,
+                self.loop,
+                self.discard_connection
+            ),
+            host=self.protocol_class.APNS_SERVER,
+            port=self.protocol_class.APNS_PORT,
+            ssl=self.ssl_context
+        )
+        logger.info('Connection established (total: %d)',
+                    len(self.connections) + 1)
+        return protocol
+
+
+class APNsKeyConnectionPool(APNsBaseConnectionPool):
+
+    def __init__(self, team_id, bundle_id=None, auth_key_id=None, auth_key=None, max_connections=10, loop=None,
+                 use_sandbox=False):
+
+        self.auth_token = jwt.encode({
+                'iss': team_id,
+                'iat': time.time()
+            },
+            auth_key,
+            algorithm='ES256',
+            headers={
+                'alg': 'ES256',
+                'kid': auth_key_id,
+            }
+        )
+
+        self.apns_topic = bundle_id
+
+        super(APNsKeyConnectionPool, self).__init__(max_connections=max_connections, loop=loop, use_sandbox=use_sandbox)
+
+    async def connect(self):
+        _, protocol = await self.loop.create_connection(
+            protocol_factory=partial(
+                self.protocol_class,
+                self.apns_topic,
+                self.auth_token,
+                self.loop,
+                self.discard_connection
+            ),
+            host=self.protocol_class.APNS_SERVER,
+            port=self.protocol_class.APNS_PORT,
+            ssl=True
+        )
+        logger.info('Connection established (total: %d)',
+                    len(self.connections) + 1)
+        return protocol

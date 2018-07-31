@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='aioapns',
-    version='1.3',
+    version='1.3.1',
     description='An efficient APNs Client Library for Python/asyncio',
     long_description=open('README.rst').read(),
     platforms="all",
@@ -27,5 +27,6 @@ setup(
     install_requires=[
         'h2==3.0.1',
         'pyOpenSSL==17.5.0',
+        'PyJWT==1.6.4',
     ]
 )

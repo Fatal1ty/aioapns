@@ -18,17 +18,21 @@ if __name__ == '__main__':
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     setup_logger('INFO')
 
-    client_cert = 'apns-production-cert.pem'
     device_token = '<DEVICE_TOKEN>'
+
+    team_id = '<TEAM_ID>'
+    bundle_id = '<BUNDLE_ID>'
+    auth_key_id = '<AUTH_KEY_ID>'
+    auth_key = '<AUTH_KEY>'
     message = {
         "aps": {
-            "alert": "Hello from APNs Tester.",
+            "alert": "Hello from APNs tester.",
             "badge": "1",
             "sound": "default",
         }
     }
 
-    apns = APNs(client_cert)
+    apns = APNs(team_id=team_id, bundle_id=bundle_id, auth_key_id=auth_key_id, auth_key=auth_key, use_sandbox=True)
 
     async def send_request():
         request = NotificationRequest(
@@ -38,12 +42,13 @@ if __name__ == '__main__':
         await apns.send_notification(request)
 
     async def main():
-        send_requests = [send_request() for _ in range(1000)]
+        send_requests = [send_request() for _ in range(3)]
         import time
         t = time.time()
         await asyncio.wait(send_requests)
         print('Done: %s' % (time.time() - t))
         print()
+
     try:
         loop = asyncio.get_event_loop()
         asyncio.ensure_future(main())

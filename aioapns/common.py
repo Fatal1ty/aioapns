@@ -1,5 +1,6 @@
 import asyncio
 from uuid import uuid4
+from textwrap import wrap
 
 
 PRIORITY_NORMAL = '5'
@@ -65,3 +66,11 @@ class DynamicBoundedSemaphore(asyncio.BoundedSemaphore):
 
 class APNS_RESPONSE_CODE:
     SUCCESS = '200'
+
+
+def wrap_private_key(private_key):
+    # Wrap key to 64 lines
+    comps = private_key.split("\n")
+    wrapped_key = "\n".join(wrap(comps[1], 64))
+    return "\n".join([comps[0], wrapped_key, comps[2]])
+
