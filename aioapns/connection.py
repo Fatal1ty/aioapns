@@ -13,7 +13,7 @@ from h2.settings import SettingCodes
 
 from aioapns.common import NotificationResult, DynamicBoundedSemaphore,\
     APNS_RESPONSE_CODE
-from aioapns.exceptions import ConnectionClosed
+from aioapns.exceptions import ConnectionClosed, ConnectionError
 from aioapns.logging import logger
 
 
@@ -305,7 +305,12 @@ class APNsConnectionPool:
                     self._lock.release()
                     return connection
             if len(self.connections) < self.max_connections:
-                connection = await self.connect()
+                try:
+                    connection = await self.connect()
+                except Exception as e:
+                    logger.error('Could not connect to server: %s', str(e))
+                    self._lock.release()
+                    raise ConnectionError()
                 self.connections.append(connection)
                 self._lock.release()
                 return connection
@@ -327,7 +332,13 @@ class APNsConnectionPool:
                                request.notification_id, attempt)
             logger.debug('Notification %s: waiting for connection',
                          request.notification_id)
-            connection = await self.acquire()
+            try:
+                connection = await self.acquire()
+            except ConnectionError:
+                logger.warning('Could not send notification %s: '
+                               'ConnectionError', request.notification_id)
+                await asyncio.sleep(1)
+                continue
             logger.debug('Notification %s: connection %s acquired',
                          request.notification_id, connection)
             try:
