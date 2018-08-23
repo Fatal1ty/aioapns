@@ -4,3 +4,7 @@ class ConnectionClosed(Exception):
 
 class ImproperlyConfigured(Exception):
     pass
+
+
+class ConnectionError(Exception):
+    pass
