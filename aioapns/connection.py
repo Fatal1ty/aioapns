@@ -381,21 +381,26 @@ class APNsKeyConnectionPool(APNsBaseConnectionPool):
     def __init__(self, team_id, bundle_id=None, auth_key_id=None, auth_key=None, max_connections=10, loop=None,
                  use_sandbox=False):
 
-        self.auth_token = jwt.encode({
-                'iss': team_id,
-                'iat': time.time()
-            },
-            auth_key,
+        self.apns_topic = bundle_id
+        self.team_id = team_id
+        self.auth_key_id = auth_key_id
+        self.auth_key = auth_key
+
+        super(APNsKeyConnectionPool, self).__init__(max_connections=max_connections, loop=loop, use_sandbox=use_sandbox)
+
+    @property
+    def auth_token(self):
+        return jwt.encode({
+            'iss': self.team_id,
+            'iat': time.time()
+        },
+            self.auth_key,
             algorithm='ES256',
             headers={
                 'alg': 'ES256',
-                'kid': auth_key_id,
+                'kid': self.auth_key_id,
             }
         )
-
-        self.apns_topic = bundle_id
-
-        super(APNsKeyConnectionPool, self).__init__(max_connections=max_connections, loop=loop, use_sandbox=use_sandbox)
 
     async def connect(self):
         _, protocol = await self.loop.create_connection(
