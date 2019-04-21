@@ -7,7 +7,7 @@ from functools import partial
 import OpenSSL
 from h2.connection import H2Connection
 from h2.events import ResponseReceived, DataReceived, RemoteSettingsChanged,\
-    StreamEnded, ConnectionTerminated, WindowUpdated
+    StreamEnded, ConnectionTerminated, WindowUpdated, SettingsAcknowledged
 from h2.exceptions import NoAvailableStreamIDError, FlowControlError
 from h2.settings import SettingCodes
 
@@ -59,6 +59,8 @@ class H2Protocol(asyncio.Protocol):
             elif isinstance(event, ConnectionTerminated):
                 self.on_connection_terminated(event)
             elif isinstance(event, WindowUpdated):
+                pass
+            elif isinstance(event, SettingsAcknowledged):
                 pass
             else:
                 logger.warning('Unknown event: %s', event)
