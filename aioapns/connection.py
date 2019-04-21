@@ -231,7 +231,7 @@ class APNsTLSClientProtocol(APNsBaseClientProtocol):
         if self.inactivity_timer:
             self.inactivity_timer.cancel()
         logger.debug('Closing connection %s', self)
-        self.transport._ssl_protocol._transport.close()
+        self.transport.close()
 
 
 class APNsProductionClientProtocol(APNsTLSClientProtocol):
