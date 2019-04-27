@@ -35,6 +35,7 @@ Features
 --------
 
 * Internal connection pool which adapts to the current load
+* Support for certificate and token based connections
 * Ability to set TTL (time to live) for notifications
 * Ability to set priority for notifications
 * Ability to set collapse-key for notifications
@@ -54,12 +55,23 @@ Basic Usage
 
 .. code-block:: python
 
+    import asyncio
     from uuid import uuid4
     from aioapns import APNs, NotificationRequest
 
 
     async def run():
-        apns = APNs('/path/to/apns-production-cert.pem', use_sandbox=False)
+        apns_cert_client = APNs(
+            client_cert='/path/to/apns-cert.pem',
+            use_sandbox=False,
+        )
+        apns_key_client = APNs(
+            key='/path/to/apns-key.p8',
+            key_id='<KEY_ID>',
+            team_id='<TEAM_ID>',
+            topic='<APNS_TOPIC>',  # Bundle ID
+            use_sandbox=False,
+        )
         request = NotificationRequest(
             device_token='<DEVICE_TOKEN>',
             message = {
@@ -67,11 +79,12 @@ Basic Usage
                     "alert": "Hello from APNs",
                     "badge": "1",
                 }
-            }
-            notification_id=str(uuid4())  # optional
-            time_to_live=3,               # optional
+            },
+            notification_id=str(uuid4()),  # optional
+            time_to_live=3,                # optional
         )
-        await apns.send_notification(request)
+        await apns_cert_client.send_notification(request)
+        await apns_key_client.send_notification(request)
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(run())
