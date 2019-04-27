@@ -21,6 +21,7 @@ class APNs:
         elif client_cert:
             self.pool = APNsCertConnectionPool(
                 cert_file=client_cert,
+                topic=topic,
                 max_connections=max_connections,
                 loop=loop,
                 use_sandbox=use_sandbox
