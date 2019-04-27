@@ -27,5 +27,6 @@ setup(
     install_requires=[
         'h2==3.1.0',
         'pyOpenSSL>=17.5.0',
+        'pyjwt>=1.7.1',
     ]
 )

@@ -3,7 +3,9 @@ import json
 import asyncio
 from ssl import SSLContext
 from functools import partial
+from typing import Optional, Callable, NoReturn
 
+import jwt
 import OpenSSL
 from h2.connection import H2Connection
 from h2.events import ResponseReceived, DataReceived, RemoteSettingsChanged,\
@@ -32,6 +34,37 @@ class ChannelPool(DynamicBoundedSemaphore):
     @property
     def is_busy(self):
         return self._value <= 0
+
+
+class AuthorizationHeaderProvider:
+    def get_header(self):
+        raise NotImplementedError
+
+
+class JWTAuthorizationHeaderProvider(AuthorizationHeaderProvider):
+
+    TOKEN_TTL = 30 * 60
+
+    def __init__(self, key, key_id, team_id):
+        self.key = key
+        self.key_id = key_id
+        self.team_id = team_id
+
+        self.__issued_at = None
+        self.__header = None
+
+    def get_header(self):
+        now = time.time()
+        if not self.__header or self.__issued_at < now - self.TOKEN_TTL:
+            self.__issued_at = int(now)
+            token = jwt.encode(
+                payload={'iss': self.team_id, 'iat': self.__issued_at},
+                key=self.key,
+                algorithm='ES256',
+                headers={'kid': self.key_id},
+            ).decode('ascii')
+            self.__header = f"bearer {token}"
+        return self.__header
 
 
 class H2Protocol(asyncio.Protocol):
@@ -94,11 +127,17 @@ class APNsBaseClientProtocol(H2Protocol):
     APNS_SERVER = 'api.push.apple.com'
     INACTIVITY_TIME = 10
 
-    def __init__(self, apns_topic, loop=None, on_connection_lost=None):
+    def __init__(self,
+                 apns_topic: str,
+                 loop: Optional[asyncio.AbstractEventLoop] = None,
+                 on_connection_lost: Optional[
+                     Callable[['APNsBaseClientProtocol'], NoReturn]] = None,
+                 auth_provider: Optional[AuthorizationHeaderProvider] = None):
         super(APNsBaseClientProtocol, self).__init__()
         self.apns_topic = apns_topic
         self.loop = loop or asyncio.get_event_loop()
         self.on_connection_lost = on_connection_lost
+        self.auth_provider = auth_provider
 
         self.requests = {}
         self.request_streams = {}
@@ -127,6 +166,8 @@ class APNsBaseClientProtocol(H2Protocol):
             headers.append(('apns-priority', str(request.priority)))
         if request.collapse_key is not None:
             headers.append(('apns-collapse-id', request.collapse_key))
+        if self.auth_provider:
+            headers.append(('authorization', self.auth_provider.get_header()))
 
         self.conn.send_headers(
             stream_id=stream_id,
@@ -244,16 +285,17 @@ class APNsDevelopmentClientProtocol(APNsTLSClientProtocol):
     APNS_SERVER = 'api.development.push.apple.com'
 
 
-class APNsConnectionPool:
+class APNsBaseConnectionPool:
     MAX_ATTEMPTS = 10
 
-    def __init__(self, cert_file, max_connections=10, loop=None,
-                 use_sandbox=False):
-        self.cert_file = cert_file
-        self.ssl_context = SSLContext()
-        self.ssl_context.load_cert_chain(cert_file)
-        self.max_connections = max_connections
+    def __init__(self,
+                 topic: Optional[str] = None,
+                 max_connections: int = 10,
+                 loop: Optional[asyncio.AbstractEventLoop] = None,
+                 use_sandbox: bool = False):
 
+        self.apns_topic = topic
+        self.max_connections = max_connections
         if use_sandbox:
             self.protocol_class = APNsDevelopmentClientProtocol
         else:
@@ -263,28 +305,8 @@ class APNsConnectionPool:
         self.connections = []
         self._lock = asyncio.Lock(loop=self.loop)
 
-        with open(self.cert_file, 'rb') as f:
-            body = f.read()
-            cert = OpenSSL.crypto.load_certificate(
-                OpenSSL.crypto.FILETYPE_PEM, body
-            )
-            self.apns_topic = cert.get_subject().UID
-
-    async def connect(self):
-        _, protocol = await self.loop.create_connection(
-            protocol_factory=partial(
-                self.protocol_class,
-                self.apns_topic,
-                self.loop,
-                self.discard_connection
-            ),
-            host=self.protocol_class.APNS_SERVER,
-            port=self.protocol_class.APNS_PORT,
-            ssl=self.ssl_context
-        )
-        logger.info('Connection established (total: %d)',
-                    len(self.connections) + 1)
-        return protocol
+    async def create_connection(self):
+        raise NotImplementedError
 
     def close(self):
         for connection in self.connections:
@@ -308,12 +330,14 @@ class APNsConnectionPool:
                     return connection
             if len(self.connections) < self.max_connections:
                 try:
-                    connection = await self.connect()
+                    connection = await self.create_connection()
                 except Exception as e:
                     logger.error('Could not connect to server: %s', str(e))
                     self._lock.release()
                     raise ConnectionError()
                 self.connections.append(connection)
+                logger.info('Connection established (total: %d)',
+                            len(self.connections))
                 self._lock.release()
                 return connection
             else:
@@ -355,3 +379,90 @@ class APNsConnectionPool:
                 logger.debug('Got FlowControlError for notification %s',
                              request.notification_id)
                 await asyncio.sleep(1)
+            break
+
+
+class APNsCertConnectionPool(APNsBaseConnectionPool):
+    def __init__(self,
+                 cert_file: str,
+                 topic: Optional[str] = None,
+                 max_connections: int = 10,
+                 loop: Optional[asyncio.AbstractEventLoop] = None,
+                 use_sandbox: bool = False):
+
+        super(APNsCertConnectionPool, self).__init__(
+            topic=topic,
+            max_connections=max_connections,
+            loop=loop,
+            use_sandbox=use_sandbox,
+        )
+
+        self.cert_file = cert_file
+        self.ssl_context = SSLContext()
+        self.ssl_context.load_cert_chain(cert_file)
+
+        if not self.apns_topic:
+            with open(self.cert_file, 'rb') as f:
+                body = f.read()
+                cert = OpenSSL.crypto.load_certificate(
+                    OpenSSL.crypto.FILETYPE_PEM, body
+                )
+                self.apns_topic = cert.get_subject().UID
+
+    async def create_connection(self):
+        _, protocol = await self.loop.create_connection(
+            protocol_factory=partial(
+                self.protocol_class,
+                self.apns_topic,
+                self.loop,
+                self.discard_connection
+            ),
+            host=self.protocol_class.APNS_SERVER,
+            port=self.protocol_class.APNS_PORT,
+            ssl=self.ssl_context
+        )
+        return protocol
+
+
+class APNsKeyConnectionPool(APNsBaseConnectionPool):
+    def __init__(self,
+                 key_file: str,
+                 key_id: str,
+                 team_id: str,
+                 topic: str,
+                 max_connections: int = 10,
+                 loop: Optional[asyncio.AbstractEventLoop] = None,
+                 use_sandbox: bool = False):
+
+        super(APNsKeyConnectionPool, self).__init__(
+            topic=topic,
+            max_connections=max_connections,
+            loop=loop,
+            use_sandbox=use_sandbox,
+        )
+
+        self.key_id = key_id
+        self.team_id = team_id
+
+        with open(key_file) as f:
+            self.key = f.read()
+
+    async def create_connection(self):
+        auth_provider = JWTAuthorizationHeaderProvider(
+            key=self.key,
+            key_id=self.key_id,
+            team_id=self.team_id
+        )
+        _, protocol = await self.loop.create_connection(
+            protocol_factory=partial(
+                self.protocol_class,
+                self.apns_topic,
+                self.loop,
+                self.discard_connection,
+                auth_provider,
+            ),
+            host=self.protocol_class.APNS_SERVER,
+            port=self.protocol_class.APNS_PORT,
+            ssl=True,
+        )
+        return protocol
