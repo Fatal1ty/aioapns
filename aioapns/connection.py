@@ -379,7 +379,6 @@ class APNsBaseConnectionPool:
                 logger.debug('Got FlowControlError for notification %s',
                              request.notification_id)
                 await asyncio.sleep(1)
-            break
 
 
 class APNsCertConnectionPool(APNsBaseConnectionPool):
