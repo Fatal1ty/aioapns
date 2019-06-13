@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='aioapns',
-    version='1.6.1',
+    version='1.6.2',
     description='An efficient APNs Client Library for Python/asyncio',
     long_description=open('README.rst').read(),
     platforms="all",
@@ -17,6 +17,7 @@ setup(
         'Programming Language :: Python :: 3 :: Only',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         'Development Status :: 5 - Production/Stable',
     ],
     license='Apache License, Version 2.0',
