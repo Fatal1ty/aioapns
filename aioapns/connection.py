@@ -174,7 +174,7 @@ class APNsBaseClientProtocol(H2Protocol):
             headers=headers
         )
         try:
-            data = json.dumps(request.message).encode()
+            data = json.dumps(request.message, ensure_ascii=False).encode()
             self.conn.send_data(
                 stream_id=stream_id,
                 data=data,
