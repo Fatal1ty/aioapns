@@ -286,13 +286,12 @@ class APNsDevelopmentClientProtocol(APNsTLSClientProtocol):
 
 
 class APNsBaseConnectionPool:
-    MAX_ATTEMPTS = 10
-
     def __init__(self,
                  topic: Optional[str] = None,
                  max_connections: int = 10,
                  loop: Optional[asyncio.AbstractEventLoop] = None,
-                 use_sandbox: bool = False):
+                 use_sandbox: bool = False,
+                 max_connection_attempts: int = None):
 
         self.apns_topic = topic
         self.max_connections = max_connections
@@ -304,6 +303,7 @@ class APNsBaseConnectionPool:
         self.loop = loop or asyncio.get_event_loop()
         self.connections = []
         self._lock = asyncio.Lock(loop=self.loop)
+        self.max_connection_attempts = max_connection_attempts
 
     async def create_connection(self):
         raise NotImplementedError
@@ -350,19 +350,23 @@ class APNsBaseConnectionPool:
                             return connection
 
     async def send_notification(self, request):
-        attempt = 0
+        failed_attempts = 0
         while True:
-            attempt += 1
-            if attempt > self.MAX_ATTEMPTS:
-                logger.warning('Trying to send notification %s: attempt #%s',
-                               request.notification_id, attempt)
             logger.debug('Notification %s: waiting for connection',
                          request.notification_id)
             try:
                 connection = await self.acquire()
             except ConnectionError:
+                failed_attempts += 1
                 logger.warning('Could not send notification %s: '
                                'ConnectionError', request.notification_id)
+
+                if self.max_connection_attempts \
+                        and failed_attempts > self.max_connection_attempts:
+                    logger.error('Failed to connect after %d attempts.',
+                                 failed_attempts)
+                    raise
+
                 await asyncio.sleep(1)
                 continue
             logger.debug('Notification %s: connection %s acquired',
