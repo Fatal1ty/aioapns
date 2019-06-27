@@ -289,9 +289,9 @@ class APNsBaseConnectionPool:
     def __init__(self,
                  topic: Optional[str] = None,
                  max_connections: int = 10,
+                 max_connection_attempts: Optional[int] = None,
                  loop: Optional[asyncio.AbstractEventLoop] = None,
-                 use_sandbox: bool = False,
-                 max_connection_attempts: int = None):
+                 use_sandbox: bool = False):
 
         self.apns_topic = topic
         self.max_connections = max_connections
@@ -390,12 +390,14 @@ class APNsCertConnectionPool(APNsBaseConnectionPool):
                  cert_file: str,
                  topic: Optional[str] = None,
                  max_connections: int = 10,
+                 max_connection_attempts: Optional[int] = None,
                  loop: Optional[asyncio.AbstractEventLoop] = None,
                  use_sandbox: bool = False):
 
         super(APNsCertConnectionPool, self).__init__(
             topic=topic,
             max_connections=max_connections,
+            max_connection_attempts=max_connection_attempts,
             loop=loop,
             use_sandbox=use_sandbox,
         )
@@ -434,12 +436,14 @@ class APNsKeyConnectionPool(APNsBaseConnectionPool):
                  team_id: str,
                  topic: str,
                  max_connections: int = 10,
+                 max_connection_attempts: Optional[int] = None,
                  loop: Optional[asyncio.AbstractEventLoop] = None,
                  use_sandbox: bool = False):
 
         super(APNsKeyConnectionPool, self).__init__(
             topic=topic,
             max_connections=max_connections,
+            max_connection_attempts=max_connection_attempts,
             loop=loop,
             use_sandbox=use_sandbox,
         )

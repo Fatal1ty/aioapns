@@ -13,6 +13,7 @@ class APNs:
                  team_id: Optional[str] = None,
                  topic: Optional[str] = None,
                  max_connections: int = 10,
+                 max_connection_attempts: Optional[int] = None,
                  loop: Optional[asyncio.AbstractEventLoop] = None,
                  use_sandbox: bool = False):
 
@@ -23,6 +24,7 @@ class APNs:
                 cert_file=client_cert,
                 topic=topic,
                 max_connections=max_connections,
+                max_connection_attempts=max_connection_attempts,
                 loop=loop,
                 use_sandbox=use_sandbox
             )
@@ -33,6 +35,7 @@ class APNs:
                 team_id=team_id,
                 topic=topic,
                 max_connections=max_connections,
+                max_connection_attempts=max_connection_attempts,
                 loop=loop,
                 use_sandbox=use_sandbox
             )
