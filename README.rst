@@ -57,7 +57,7 @@ Basic Usage
 
     import asyncio
     from uuid import uuid4
-    from aioapns import APNs, NotificationRequest
+    from aioapns import APNs, NotificationRequest, PushType
 
 
     async def run():
@@ -82,6 +82,7 @@ Basic Usage
             },
             notification_id=str(uuid4()),  # optional
             time_to_live=3,                # optional
+            push_type=PushType.ALERT,      # optional
         )
         await apns_cert_client.send_notification(request)
         await apns_key_client.send_notification(request)
