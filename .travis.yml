@@ -1,8 +1,11 @@
+dist: xenial
 language: python
 python:
-  - "3.5"
-  - "3.6"
-# command to install dependencies
-install: "pip install ."
-# command to run tests
-script: echo "SUCCESS"
+  - 3.5
+  - 3.6
+  - 3.7
+  - 3.8
+install:
+  - pip install .
+script:
+  - echo "SUCCESS"
