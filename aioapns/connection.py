@@ -167,7 +167,7 @@ class APNsBaseClientProtocol(H2Protocol):
         if request.collapse_key is not None:
             headers.append(('apns-collapse-id', request.collapse_key))
         if request.push_type is not None:
-            headers.append(('apns-push-type', str(request.push_type)))
+            headers.append(('apns-push-type', request.push_type.value))
         if self.auth_provider:
             headers.append(('authorization', self.auth_provider.get_header()))
 
