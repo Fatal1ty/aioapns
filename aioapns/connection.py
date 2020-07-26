@@ -1,7 +1,7 @@
 import time
 import json
 import asyncio
-from ssl import SSLContext
+import ssl
 from functools import partial
 from typing import Optional, Callable, NoReturn
 
@@ -388,13 +388,16 @@ class APNsBaseConnectionPool:
 
 
 class APNsCertConnectionPool(APNsBaseConnectionPool):
-    def __init__(self,
-                 cert_file: str,
-                 topic: Optional[str] = None,
-                 max_connections: int = 10,
-                 max_connection_attempts: Optional[int] = None,
-                 loop: Optional[asyncio.AbstractEventLoop] = None,
-                 use_sandbox: bool = False):
+    def __init__(
+        self,
+        cert_file: str,
+        topic: Optional[str] = None,
+        max_connections: int = 10,
+        max_connection_attempts: Optional[int] = None,
+        loop: Optional[asyncio.AbstractEventLoop] = None,
+        use_sandbox: bool = False,
+        no_cert_validation: bool = False,
+    ):
 
         super(APNsCertConnectionPool, self).__init__(
             topic=topic,
@@ -405,7 +408,10 @@ class APNsCertConnectionPool(APNsBaseConnectionPool):
         )
 
         self.cert_file = cert_file
-        self.ssl_context = SSLContext()
+        self.ssl_context = ssl.create_default_context()
+        if no_cert_validation:
+            self.ssl_context.verify_mode = ssl.CERT_NONE
+            self.ssl_context.check_hostname = False
         self.ssl_context.load_cert_chain(cert_file)
 
         if not self.apns_topic:
