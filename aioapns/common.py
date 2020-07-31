@@ -77,3 +77,11 @@ class DynamicBoundedSemaphore(asyncio.BoundedSemaphore):
 
 class APNS_RESPONSE_CODE:
     SUCCESS = '200'
+    BAD_REQUEST = '400'
+    FORBIDDEN = '403'
+    METHOD_NOT_ALLOWED = '405'
+    GONE = '410'
+    PAYLOAD_TOO_LARGE = '413'
+    TOO_MANY_REQUESTS = '429'
+    INTERNAL_SERVER_ERROR = '500'
+    SERVICE_UNAVAILABLE = '503'
