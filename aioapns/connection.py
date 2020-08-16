@@ -410,8 +410,8 @@ class APNsCertConnectionPool(APNsBaseConnectionPool):
         self.cert_file = cert_file
         self.ssl_context = ssl.create_default_context()
         if no_cert_validation:
-            self.ssl_context.verify_mode = ssl.CERT_NONE
             self.ssl_context.check_hostname = False
+            self.ssl_context.verify_mode = ssl.CERT_NONE
         self.ssl_context.load_cert_chain(cert_file)
 
         if not self.apns_topic:
