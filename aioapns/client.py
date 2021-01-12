@@ -1,5 +1,6 @@
 import asyncio
 from typing import Optional
+from ssl import SSLContext
 
 from aioapns.connection import APNsCertConnectionPool, APNsKeyConnectionPool
 from aioapns.logging import logger
@@ -18,6 +19,7 @@ class APNs:
         loop: Optional[asyncio.AbstractEventLoop] = None,
         use_sandbox: bool = False,
         no_cert_validation: bool = False,
+        ssl_context: Optional[SSLContext] = None
     ):
 
         if client_cert is not None and key is not None:
@@ -30,7 +32,8 @@ class APNs:
                 max_connection_attempts=max_connection_attempts,
                 loop=loop,
                 use_sandbox=use_sandbox,
-                no_cert_validation=no_cert_validation
+                no_cert_validation=no_cert_validation,
+                ssl_context=ssl_context
             )
         elif all((key, key_id, team_id, topic)):
             self.pool = APNsKeyConnectionPool(
@@ -41,7 +44,8 @@ class APNs:
                 max_connections=max_connections,
                 max_connection_attempts=max_connection_attempts,
                 loop=loop,
-                use_sandbox=use_sandbox
+                use_sandbox=use_sandbox,
+                ssl_context=ssl_context
             )
         else:
             raise ValueError(

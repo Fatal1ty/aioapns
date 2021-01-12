@@ -397,6 +397,7 @@ class APNsCertConnectionPool(APNsBaseConnectionPool):
         loop: Optional[asyncio.AbstractEventLoop] = None,
         use_sandbox: bool = False,
         no_cert_validation: bool = False,
+        ssl_context: Optional[ssl.SSLContext] = None,
     ):
 
         super(APNsCertConnectionPool, self).__init__(
@@ -408,7 +409,7 @@ class APNsCertConnectionPool(APNsBaseConnectionPool):
         )
 
         self.cert_file = cert_file
-        self.ssl_context = ssl.create_default_context()
+        self.ssl_context = ssl_context or ssl.create_default_context()
         if no_cert_validation:
             self.ssl_context.check_hostname = False
             self.ssl_context.verify_mode = ssl.CERT_NONE
@@ -446,7 +447,8 @@ class APNsKeyConnectionPool(APNsBaseConnectionPool):
                  max_connections: int = 10,
                  max_connection_attempts: Optional[int] = None,
                  loop: Optional[asyncio.AbstractEventLoop] = None,
-                 use_sandbox: bool = False):
+                 use_sandbox: bool = False,
+                 ssl_context: Optional[ssl.SSLContext] = None):
 
         super(APNsKeyConnectionPool, self).__init__(
             topic=topic,
@@ -455,6 +457,8 @@ class APNsKeyConnectionPool(APNsBaseConnectionPool):
             loop=loop,
             use_sandbox=use_sandbox,
         )
+
+        self.ssl_context = ssl_context or ssl.create_default_context()
 
         self.key_id = key_id
         self.team_id = team_id
@@ -478,6 +482,6 @@ class APNsKeyConnectionPool(APNsBaseConnectionPool):
             ),
             host=self.protocol_class.APNS_SERVER,
             port=self.protocol_class.APNS_PORT,
-            ssl=True,
+            ssl=self.ssl_context,
         )
         return protocol
