@@ -25,7 +25,7 @@ setup(
     url="https://github.com/Fatal1ty/aioapns",
     packages=find_packages(exclude=("tests",)),
     install_requires=[
-        "h2==4.0.0",
+        "h2>=4.0.0",
         "pyOpenSSL>=17.5.0",
         "pyjwt>=2.0.0",
     ],
