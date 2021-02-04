@@ -4,6 +4,9 @@ aioapns - An efficient APNs Client Library for Python/asyncio
 .. image:: https://travis-ci.org/Fatal1ty/aioapns.svg?branch=master
     :target: https://travis-ci.org/Fatal1ty/aioapns
 
+.. image:: https://github.com/Fatal1ty/aioapns/workflows/tests/badge.svg
+   :target: https://github.com/Fatal1ty/aioapns/actions
+
 .. image:: https://requires.io/github/Fatal1ty/aioapns/requirements.svg?branch=master
      :target: https://requires.io/github/Fatal1ty/aioapns/requirements/?branch=master
      :alt: Requirements Status
