@@ -53,9 +53,12 @@ class APNs:
                 "the key credentials"
             )
 
-    async def send_notification(self, request):
+    async def send_notification(self, request, error_func=None):
         response = await self.pool.send_notification(request)
         if not response.is_successful:
+            if error_func:
+                await error_func(request.notification_id,
+                                 response, device_token=request.device_token)
             logger.error(
                 "Status of notification %s is %s (%s)",
                 request.notification_id,
