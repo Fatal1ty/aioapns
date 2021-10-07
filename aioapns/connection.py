@@ -25,7 +25,7 @@ from aioapns.common import (
     DynamicBoundedSemaphore,
     NotificationResult,
 )
-from aioapns.exceptions import ConnectionClosed, ConnectionError
+from aioapns.exceptions import ConnectionClosed, ConnectionError, FailedToSendNotification
 from aioapns.logging import logger
 
 
@@ -408,11 +408,12 @@ class APNsBaseConnectionPool:
                 return response
             except NoAvailableStreamIDError:
                 connection.close()
-            except ConnectionClosed:
+            except ConnectionClosed as error:
                 logger.warning(
                     "Could not send notification %s: " "ConnectionClosed",
                     request.notification_id,
                 )
+                raise FailedToSendNotification() from error
             except FlowControlError:
                 logger.debug(
                     "Got FlowControlError for notification %s",
