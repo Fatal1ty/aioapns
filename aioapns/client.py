@@ -15,7 +15,7 @@ class APNs:
         team_id: Optional[str] = None,
         topic: Optional[str] = None,
         max_connections: int = 10,
-        max_connection_attempts: Optional[int] = None,
+        max_connection_attempts: int = 5,
         loop: Optional[asyncio.AbstractEventLoop] = None,
         use_sandbox: bool = False,
         no_cert_validation: bool = False,
