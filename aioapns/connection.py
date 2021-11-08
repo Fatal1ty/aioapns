@@ -25,7 +25,11 @@ from aioapns.common import (
     DynamicBoundedSemaphore,
     NotificationResult,
 )
-from aioapns.exceptions import ConnectionClosed, ConnectionError, MaxAttemptsExceeded
+from aioapns.exceptions import (
+    ConnectionClosed,
+    ConnectionError,
+    MaxAttemptsExceeded,
+)
 from aioapns.logging import logger
 
 
