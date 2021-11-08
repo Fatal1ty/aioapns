@@ -223,7 +223,7 @@ class APNsBaseClientProtocol(H2Protocol):
         raise NotImplementedError
 
     def connection_lost(self, exc):
-        logger.debug("Connection %s lost!", self)
+        logger.debug("Connection %s lost! Error: %s", self, exc)
 
         if self.inactivity_timer:
             self.inactivity_timer.cancel()
@@ -231,7 +231,7 @@ class APNsBaseClientProtocol(H2Protocol):
         if self.on_connection_lost:
             self.on_connection_lost(self)
 
-        closed_connection = ConnectionClosed()
+        closed_connection = ConnectionClosed(str(exc))
         for request in self.requests.values():
             request.set_exception(closed_connection)
         self.free_channels.destroy(closed_connection)
