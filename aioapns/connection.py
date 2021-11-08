@@ -25,7 +25,7 @@ from aioapns.common import (
     DynamicBoundedSemaphore,
     NotificationResult,
 )
-from aioapns.exceptions import ConnectionClosed, ConnectionError
+from aioapns.exceptions import ConnectionClosed, ConnectionError, MaxAttemptsExceeded
 from aioapns.logging import logger
 
 
@@ -373,7 +373,7 @@ class APNsBaseConnectionPool:
 
     async def send_notification(self, request):
         failed_attempts = 0
-        while True:
+        while failed_attempts < self.max_connection_attempts:
             logger.debug(
                 "Notification %s: waiting for connection",
                 request.notification_id,
@@ -386,16 +386,6 @@ class APNsBaseConnectionPool:
                     "Could not send notification %s: " "ConnectionError",
                     request.notification_id,
                 )
-
-                if (
-                    self.max_connection_attempts
-                    and failed_attempts > self.max_connection_attempts
-                ):
-                    logger.error(
-                        "Failed to connect after %d attempts.", failed_attempts
-                    )
-                    raise
-
                 await asyncio.sleep(1)
                 continue
             logger.debug(
@@ -413,12 +403,18 @@ class APNsBaseConnectionPool:
                     "Could not send notification %s: " "ConnectionClosed",
                     request.notification_id,
                 )
+                raise
             except FlowControlError:
                 logger.debug(
                     "Got FlowControlError for notification %s",
                     request.notification_id,
                 )
                 await asyncio.sleep(1)
+            failed_attempts += 1
+        logger.error(
+            "Failed to send after %d attempts.", failed_attempts
+        )
+        raise MaxAttemptsExceeded
 
 
 class APNsCertConnectionPool(APNsBaseConnectionPool):

@@ -4,3 +4,7 @@ class ConnectionClosed(Exception):
 
 class ConnectionError(Exception):
     pass
+
+
+class MaxAttemptsExceeded(Exception):
+    pass
