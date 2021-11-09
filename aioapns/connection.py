@@ -1,3 +1,4 @@
+import sys
 import asyncio
 import json
 import ssl
@@ -324,7 +325,11 @@ class APNsBaseConnectionPool:
 
         self.loop = loop or asyncio.get_event_loop()
         self.connections = []
-        self._lock = asyncio.Lock(loop=self.loop)
+        # Python 3.10+ does not use the "loop" parameter
+        if sys.hexversion >= 0x030A00F0:
+            self._lock = asyncio.Lock()
+        else:
+            self._lock = asyncio.Lock(loop=self.loop)
         self.max_connection_attempts = max_connection_attempts
 
     async def create_connection(self):
