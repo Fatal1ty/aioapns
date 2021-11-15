@@ -26,7 +26,11 @@ from aioapns.common import (
     DynamicBoundedSemaphore,
     NotificationResult,
 )
-from aioapns.exceptions import ConnectionClosed, ConnectionError, FailedToSendNotification
+from aioapns.exceptions import (
+    ConnectionClosed,
+    ConnectionError,
+    FailedToSendNotification
+)
 from aioapns.logging import logger
 
 
