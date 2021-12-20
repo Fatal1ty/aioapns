@@ -407,7 +407,6 @@ class APNsBaseConnectionPool:
                     "Could not send notification %s: " "ConnectionClosed",
                     request.notification_id,
                 )
-                raise
             except FlowControlError:
                 logger.debug(
                     "Got FlowControlError for notification %s",
