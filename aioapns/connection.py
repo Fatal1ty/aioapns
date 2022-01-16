@@ -315,7 +315,6 @@ class APNsBaseConnectionPool:
         topic: Optional[str] = None,
         max_connections: int = 10,
         max_connection_attempts: int = 5,
-        loop: Optional[asyncio.AbstractEventLoop] = None,
         use_sandbox: bool = False,
     ):
 
@@ -327,9 +326,9 @@ class APNsBaseConnectionPool:
         else:
             self.protocol_class = APNsProductionClientProtocol
 
-        self.loop = loop or asyncio.get_event_loop()
+        self.loop = asyncio.get_event_loop()
         self.connections: List[APNsBaseClientProtocol] = []
-        self._lock = asyncio.Lock(loop=self.loop)
+        self._lock = asyncio.Lock()
         self.max_connection_attempts = max_connection_attempts
 
     async def create_connection(self):
@@ -425,7 +424,6 @@ class APNsCertConnectionPool(APNsBaseConnectionPool):
         topic: Optional[str] = None,
         max_connections: int = 10,
         max_connection_attempts: int = 5,
-        loop: Optional[asyncio.AbstractEventLoop] = None,
         use_sandbox: bool = False,
         no_cert_validation: bool = False,
         ssl_context: Optional[ssl.SSLContext] = None,
@@ -435,7 +433,6 @@ class APNsCertConnectionPool(APNsBaseConnectionPool):
             topic=topic,
             max_connections=max_connections,
             max_connection_attempts=max_connection_attempts,
-            loop=loop,
             use_sandbox=use_sandbox,
         )
 
@@ -478,7 +475,6 @@ class APNsKeyConnectionPool(APNsBaseConnectionPool):
         topic: str,
         max_connections: int = 10,
         max_connection_attempts: int = 5,
-        loop: Optional[asyncio.AbstractEventLoop] = None,
         use_sandbox: bool = False,
         ssl_context: Optional[ssl.SSLContext] = None,
     ):
@@ -487,7 +483,6 @@ class APNsKeyConnectionPool(APNsBaseConnectionPool):
             topic=topic,
             max_connections=max_connections,
             max_connection_attempts=max_connection_attempts,
-            loop=loop,
             use_sandbox=use_sandbox,
         )
 
