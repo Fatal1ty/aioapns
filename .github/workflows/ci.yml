@@ -25,5 +25,7 @@ jobs:
       run: pip install -r requirements-dev.txt
     - name: Link with flake8
       run: flake8 aioapns
+    - name: Run mypy
+      run: mypy aioapns
     - name: Run black
       run: black --check .
