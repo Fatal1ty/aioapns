@@ -1,4 +1,3 @@
-import asyncio
 from ssl import SSLContext
 from typing import Optional
 
@@ -20,7 +19,6 @@ class APNs:
         topic: Optional[str] = None,
         max_connections: int = 10,
         max_connection_attempts: int = 5,
-        loop: Optional[asyncio.AbstractEventLoop] = None,
         use_sandbox: bool = False,
         no_cert_validation: bool = False,
         ssl_context: Optional[SSLContext] = None,
@@ -35,7 +33,6 @@ class APNs:
                 topic=topic,
                 max_connections=max_connections,
                 max_connection_attempts=max_connection_attempts,
-                loop=loop,
                 use_sandbox=use_sandbox,
                 no_cert_validation=no_cert_validation,
                 ssl_context=ssl_context,
@@ -48,7 +45,6 @@ class APNs:
                 topic=topic,
                 max_connections=max_connections,
                 max_connection_attempts=max_connection_attempts,
-                loop=loop,
                 use_sandbox=use_sandbox,
                 ssl_context=ssl_context,
             )
