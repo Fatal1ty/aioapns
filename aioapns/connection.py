@@ -3,7 +3,7 @@ import json
 import ssl
 import time
 from functools import partial
-from typing import Callable, NoReturn, Optional
+from typing import Callable, Dict, List, NoReturn, Optional, Type
 
 import jwt
 import OpenSSL
@@ -38,7 +38,7 @@ class ChannelPool(DynamicBoundedSemaphore):
         super(ChannelPool, self).__init__(*args, **kwargs)
         self._stream_id = -1
 
-    async def acquire(self) -> int:
+    async def acquire(self) -> int:  # type: ignore
         await super(ChannelPool, self).acquire()
         self._stream_id += 2
         if self._stream_id > H2Connection.HIGHEST_ALLOWED_STREAM_ID:
@@ -156,9 +156,9 @@ class APNsBaseClientProtocol(H2Protocol):
         self.on_connection_lost = on_connection_lost
         self.auth_provider = auth_provider
 
-        self.requests = {}
-        self.request_streams = {}
-        self.request_statuses = {}
+        self.requests: Dict[str, asyncio.Future] = {}
+        self.request_streams: Dict[int, str] = {}
+        self.request_statuses: Dict[str, str] = {}
         self.inactivity_timer = None
 
     def connection_made(self, transport):
@@ -314,20 +314,21 @@ class APNsBaseConnectionPool:
         self,
         topic: Optional[str] = None,
         max_connections: int = 10,
-        max_connection_attempts: Optional[int] = None,
+        max_connection_attempts: int = 5,
         loop: Optional[asyncio.AbstractEventLoop] = None,
         use_sandbox: bool = False,
     ):
 
         self.apns_topic = topic
         self.max_connections = max_connections
+        self.protocol_class: Type[APNsTLSClientProtocol]
         if use_sandbox:
             self.protocol_class = APNsDevelopmentClientProtocol
         else:
             self.protocol_class = APNsProductionClientProtocol
 
         self.loop = loop or asyncio.get_event_loop()
-        self.connections = []
+        self.connections: List[APNsBaseClientProtocol] = []
         self._lock = asyncio.Lock(loop=self.loop)
         self.max_connection_attempts = max_connection_attempts
 
@@ -413,9 +414,7 @@ class APNsBaseConnectionPool:
                     request.notification_id,
                 )
                 await asyncio.sleep(1)
-        logger.error(
-            "Failed to send after %d attempts.", attempts
-        )
+        logger.error("Failed to send after %d attempts.", attempts)
         raise MaxAttemptsExceeded
 
 
@@ -425,7 +424,7 @@ class APNsCertConnectionPool(APNsBaseConnectionPool):
         cert_file: str,
         topic: Optional[str] = None,
         max_connections: int = 10,
-        max_connection_attempts: Optional[int] = None,
+        max_connection_attempts: int = 5,
         loop: Optional[asyncio.AbstractEventLoop] = None,
         use_sandbox: bool = False,
         no_cert_validation: bool = False,
@@ -450,8 +449,8 @@ class APNsCertConnectionPool(APNsBaseConnectionPool):
         if not self.apns_topic:
             with open(self.cert_file, "rb") as f:
                 body = f.read()
-                cert = OpenSSL.crypto.load_certificate(
-                    OpenSSL.crypto.FILETYPE_PEM, body
+                cert = OpenSSL.crypto.load_certificate(  # type: ignore
+                    OpenSSL.crypto.FILETYPE_PEM, body  # type: ignore
                 )
                 self.apns_topic = cert.get_subject().UID
 
@@ -478,7 +477,7 @@ class APNsKeyConnectionPool(APNsBaseConnectionPool):
         team_id: str,
         topic: str,
         max_connections: int = 10,
-        max_connection_attempts: Optional[int] = None,
+        max_connection_attempts: int = 5,
         loop: Optional[asyncio.AbstractEventLoop] = None,
         use_sandbox: bool = False,
         ssl_context: Optional[ssl.SSLContext] = None,
