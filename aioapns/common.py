@@ -13,6 +13,7 @@ class PushType(Enum):
     COMPLICATION = "complication"
     FILEPROVIDER = "fileprovider"
     MDM = "mdm"
+    LIVEACTIVITY = "liveactivity"
 
 
 class NotificationRequest:
