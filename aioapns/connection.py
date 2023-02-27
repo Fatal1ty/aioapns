@@ -402,13 +402,17 @@ class APNsBaseConnectionPool:
                 return response
             except NoAvailableStreamIDError:
                 connection.close()
+                logger.warning(
+                    "No available stream id: %s: " "NoAvailableStreamIDError",
+                    request.notification_id
+                )
             except ConnectionClosed:
                 logger.warning(
                     "Could not send notification %s: " "ConnectionClosed",
                     request.notification_id,
                 )
             except FlowControlError:
-                logger.debug(
+                logger.warning(
                     "Got FlowControlError for notification %s",
                     request.notification_id,
                 )
