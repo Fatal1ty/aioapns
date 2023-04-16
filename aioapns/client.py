@@ -23,7 +23,6 @@ class APNs:
         no_cert_validation: bool = False,
         ssl_context: Optional[SSLContext] = None,
     ):
-
         self.pool: APNsBaseConnectionPool
         if client_cert is not None and key is not None:
             raise ValueError("cannot specify both client_cert and key")

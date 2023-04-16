@@ -56,7 +56,6 @@ class AuthorizationHeaderProvider:
 
 
 class JWTAuthorizationHeaderProvider(AuthorizationHeaderProvider):
-
     TOKEN_TTL = 30 * 60
 
     def __init__(self, key, key_id, team_id):
@@ -317,7 +316,6 @@ class APNsBaseConnectionPool:
         max_connection_attempts: int = 5,
         use_sandbox: bool = False,
     ):
-
         self.apns_topic = topic
         self.max_connections = max_connections
         self.protocol_class: Type[APNsTLSClientProtocol]
@@ -428,7 +426,6 @@ class APNsCertConnectionPool(APNsBaseConnectionPool):
         no_cert_validation: bool = False,
         ssl_context: Optional[ssl.SSLContext] = None,
     ):
-
         super(APNsCertConnectionPool, self).__init__(
             topic=topic,
             max_connections=max_connections,
@@ -478,7 +475,6 @@ class APNsKeyConnectionPool(APNsBaseConnectionPool):
         use_sandbox: bool = False,
         ssl_context: Optional[ssl.SSLContext] = None,
     ):
-
         super(APNsKeyConnectionPool, self).__init__(
             topic=topic,
             max_connections=max_connections,
