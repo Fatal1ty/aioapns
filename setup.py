@@ -26,6 +26,7 @@ setup(
     author_email="random.gauss@gmail.com",
     url="https://github.com/Fatal1ty/aioapns",
     packages=find_packages(exclude=("tests",)),
+    package_data={"aioapns": ["py.typed"]},
     install_requires=[
         "h2>=4.0.0",
         "pyOpenSSL>=17.5.0",

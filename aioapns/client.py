@@ -1,6 +1,7 @@
 from ssl import SSLContext
 from typing import Optional
 
+from aioapns.common import NotificationRequest, NotificationResult
 from aioapns.connection import (
     APNsBaseConnectionPool,
     APNsCertConnectionPool,
@@ -22,7 +23,7 @@ class APNs:
         use_sandbox: bool = False,
         no_cert_validation: bool = False,
         ssl_context: Optional[SSLContext] = None,
-    ):
+    ) -> None:
         self.pool: APNsBaseConnectionPool
         if client_cert is not None and key is not None:
             raise ValueError("cannot specify both client_cert and key")
@@ -53,7 +54,9 @@ class APNs:
                 "the key credentials"
             )
 
-    async def send_notification(self, request):
+    async def send_notification(
+        self, request: NotificationRequest
+    ) -> NotificationResult:
         response = await self.pool.send_notification(request)
         if not response.is_successful:
             logger.error(

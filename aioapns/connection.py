@@ -3,7 +3,7 @@ import json
 import ssl
 import time
 from functools import partial
-from typing import Callable, Dict, List, NoReturn, Optional, Type
+from typing import Any, Callable, Dict, List, NoReturn, Optional, Type
 
 import jwt
 import OpenSSL
@@ -18,11 +18,12 @@ from h2.events import (
     WindowUpdated,
 )
 from h2.exceptions import FlowControlError, NoAvailableStreamIDError
-from h2.settings import SettingCodes
+from h2.settings import ChangedSetting, SettingCodes
 
 from aioapns.common import (
     APNS_RESPONSE_CODE,
     DynamicBoundedSemaphore,
+    NotificationRequest,
     NotificationResult,
 )
 from aioapns.exceptions import (
@@ -34,7 +35,7 @@ from aioapns.logging import logger
 
 
 class ChannelPool(DynamicBoundedSemaphore):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super(ChannelPool, self).__init__(*args, **kwargs)
         self._stream_id = -1
 
@@ -46,19 +47,19 @@ class ChannelPool(DynamicBoundedSemaphore):
         return self._stream_id
 
     @property
-    def is_busy(self):
+    def is_busy(self) -> bool:
         return self._value <= 0
 
 
 class AuthorizationHeaderProvider:
-    def get_header(self):
+    def get_header(self) -> str:
         raise NotImplementedError
 
 
 class JWTAuthorizationHeaderProvider(AuthorizationHeaderProvider):
     TOKEN_TTL = 30 * 60
 
-    def __init__(self, key, key_id, team_id):
+    def __init__(self, key, key_id, team_id) -> None:
         self.key = key
         self.key_id = key_id
         self.team_id = team_id
@@ -81,17 +82,18 @@ class JWTAuthorizationHeaderProvider(AuthorizationHeaderProvider):
 
 
 class H2Protocol(asyncio.Protocol):
-    def __init__(self):
-        self.transport = None
+    def __init__(self) -> None:
+        self.transport: Optional[asyncio.Transport] = None
         self.conn = H2Connection()
         self.free_channels = ChannelPool(1000)
 
-    def connection_made(self, transport):
+    def connection_made(self, transport: asyncio.BaseTransport) -> None:
+        assert isinstance(transport, asyncio.Transport)
         self.transport = transport
         self.conn.initiate_connection()
         self.flush()
 
-    def data_received(self, data):
+    def data_received(self, data: bytes) -> None:
         for event in self.conn.receive_data(data):
             if isinstance(event, ResponseReceived):
                 headers = dict(event.headers)
@@ -112,27 +114,30 @@ class H2Protocol(asyncio.Protocol):
                 logger.warning("Unknown event: %s", event)
         self.flush()
 
-    def flush(self):
+    def flush(self) -> None:
+        assert self.transport is not None
         self.transport.write(self.conn.data_to_send())
 
-    def on_response_received(self, headers):
+    def on_response_received(self, headers: Dict[bytes, bytes]) -> None:
         pass
 
-    def on_data_received(self, data, stream_id):
+    def on_data_received(self, data: bytes, stream_id: int) -> None:
         pass
 
-    def on_remote_settings_changed(self, changed_settings):
+    def on_remote_settings_changed(
+        self, changed_settings: Dict[SettingCodes, ChangedSetting]
+    ) -> None:
         for setting in changed_settings.values():
             logger.debug("Remote setting changed: %s", setting)
             if setting.setting == SettingCodes.MAX_CONCURRENT_STREAMS:
                 self.free_channels.bound = setting.new_value
 
-    def on_stream_ended(self, stream_id):
+    def on_stream_ended(self, stream_id: int) -> None:
         if stream_id % 2 == 0:
             logger.warning("End stream: %d", stream_id)
         self.free_channels.release()
 
-    def on_connection_terminated(self, event):
+    def on_connection_terminated(self, event: ConnectionTerminated) -> None:
         pass
 
 
@@ -148,23 +153,25 @@ class APNsBaseClientProtocol(H2Protocol):
             Callable[["APNsBaseClientProtocol"], NoReturn]
         ] = None,
         auth_provider: Optional[AuthorizationHeaderProvider] = None,
-    ):
+    ) -> None:
         super(APNsBaseClientProtocol, self).__init__()
         self.apns_topic = apns_topic
         self.loop = loop or asyncio.get_event_loop()
         self.on_connection_lost = on_connection_lost
         self.auth_provider = auth_provider
 
-        self.requests: Dict[str, asyncio.Future] = {}
+        self.requests: Dict[str, asyncio.Future[NotificationResult]] = {}
         self.request_streams: Dict[int, str] = {}
         self.request_statuses: Dict[str, str] = {}
-        self.inactivity_timer = None
+        self.inactivity_timer: Optional[asyncio.TimerHandle] = None
 
-    def connection_made(self, transport):
+    def connection_made(self, transport: asyncio.BaseTransport) -> None:
         super(APNsBaseClientProtocol, self).connection_made(transport)
         self.refresh_inactivity_timer()
 
-    async def send_notification(self, request):
+    async def send_notification(
+        self, request: NotificationRequest
+    ) -> NotificationResult:
         stream_id = await self.free_channels.acquire()
 
         headers = [
@@ -200,18 +207,19 @@ class APNsBaseClientProtocol(H2Protocol):
 
         self.flush()
 
-        future_response = asyncio.Future()
+        future_response: asyncio.Future[NotificationResult] = asyncio.Future()
         self.requests[request.notification_id] = future_response
         self.request_streams[stream_id] = request.notification_id
 
         response = await future_response
         return response
 
-    def flush(self):
+    def flush(self) -> None:
+        assert self.transport is not None
         self.refresh_inactivity_timer()
         self.transport.write(self.conn.data_to_send())
 
-    def refresh_inactivity_timer(self):
+    def refresh_inactivity_timer(self) -> None:
         if self.inactivity_timer:
             self.inactivity_timer.cancel()
         self.inactivity_timer = self.loop.call_later(
@@ -219,13 +227,13 @@ class APNsBaseClientProtocol(H2Protocol):
         )
 
     @property
-    def is_busy(self):
+    def is_busy(self) -> bool:
         return self.free_channels.is_busy
 
-    def close(self):
+    def close(self) -> None:
         raise NotImplementedError
 
-    def connection_lost(self, exc):
+    def connection_lost(self, exc: Optional[Exception]) -> None:
         logger.debug("Connection %s lost! Error: %s", self, exc)
 
         if self.inactivity_timer:
@@ -239,9 +247,9 @@ class APNsBaseClientProtocol(H2Protocol):
             request.set_exception(closed_connection)
         self.free_channels.destroy(closed_connection)
 
-    def on_response_received(self, headers):
-        notification_id = headers.get(b"apns-id").decode("utf8")
-        status = headers.get(b":status").decode("utf8")
+    def on_response_received(self, headers: Dict[bytes, bytes]) -> None:
+        notification_id = headers.get(b"apns-id", b"").decode("utf8")
+        status = headers.get(b":status", b"").decode("utf8")
         if status == APNS_RESPONSE_CODE.SUCCESS:
             request = self.requests.pop(notification_id, None)
             if request:
@@ -255,8 +263,8 @@ class APNsBaseClientProtocol(H2Protocol):
         else:
             self.request_statuses[notification_id] = status
 
-    def on_data_received(self, data, stream_id):
-        data = json.loads(data.decode())
+    def on_data_received(self, raw_data: bytes, stream_id: int) -> None:
+        data = json.loads(raw_data.decode())
         reason = data.get("reason", "")
         if not reason:
             return
@@ -278,7 +286,7 @@ class APNsBaseClientProtocol(H2Protocol):
                 "Could not find notification by stream %s", stream_id
             )
 
-    def on_connection_terminated(self, event):
+    def on_connection_terminated(self, event: ConnectionTerminated):
         logger.warning(
             "Connection %s terminated: code=%s, additional_data=%s, "
             "last_stream_id=%s",
@@ -293,11 +301,12 @@ class APNsBaseClientProtocol(H2Protocol):
 class APNsTLSClientProtocol(APNsBaseClientProtocol):
     APNS_PORT = 443
 
-    def close(self):
+    def close(self) -> None:
         if self.inactivity_timer:
             self.inactivity_timer.cancel()
         logger.debug("Closing connection %s", self)
-        self.transport.close()
+        if self.transport is not None:
+            self.transport.close()
 
 
 class APNsProductionClientProtocol(APNsTLSClientProtocol):
@@ -315,7 +324,7 @@ class APNsBaseConnectionPool:
         max_connections: int = 10,
         max_connection_attempts: int = 5,
         use_sandbox: bool = False,
-    ):
+    ) -> None:
         self.apns_topic = topic
         self.max_connections = max_connections
         self.protocol_class: Type[APNsTLSClientProtocol]
@@ -329,19 +338,19 @@ class APNsBaseConnectionPool:
         self._lock = asyncio.Lock()
         self.max_connection_attempts = max_connection_attempts
 
-    async def create_connection(self):
+    async def create_connection(self) -> APNsBaseClientProtocol:
         raise NotImplementedError
 
-    def close(self):
+    def close(self) -> None:
         for connection in self.connections:
             connection.close()
 
-    def discard_connection(self, connection):
+    def discard_connection(self, connection: APNsBaseClientProtocol) -> None:
         logger.debug("Connection %s discarded", connection)
         self.connections.remove(connection)
         logger.info("Connection released (total: %d)", len(self.connections))
 
-    async def acquire(self):
+    async def acquire(self) -> APNsBaseClientProtocol:
         for connection in self.connections:
             if not connection.is_busy:
                 return connection
@@ -373,7 +382,9 @@ class APNsBaseConnectionPool:
                         if not connection.is_busy:
                             return connection
 
-    async def send_notification(self, request):
+    async def send_notification(
+        self, request: NotificationRequest
+    ) -> NotificationResult:
         attempts = 0
         while attempts < self.max_connection_attempts:
             attempts += 1
@@ -425,7 +436,7 @@ class APNsCertConnectionPool(APNsBaseConnectionPool):
         use_sandbox: bool = False,
         no_cert_validation: bool = False,
         ssl_context: Optional[ssl.SSLContext] = None,
-    ):
+    ) -> None:
         super(APNsCertConnectionPool, self).__init__(
             topic=topic,
             max_connections=max_connections,
@@ -448,7 +459,7 @@ class APNsCertConnectionPool(APNsBaseConnectionPool):
                 )
                 self.apns_topic = cert.get_subject().UID
 
-    async def create_connection(self):
+    async def create_connection(self) -> APNsBaseClientProtocol:
         _, protocol = await self.loop.create_connection(
             protocol_factory=partial(
                 self.protocol_class,
@@ -474,7 +485,7 @@ class APNsKeyConnectionPool(APNsBaseConnectionPool):
         max_connection_attempts: int = 5,
         use_sandbox: bool = False,
         ssl_context: Optional[ssl.SSLContext] = None,
-    ):
+    ) -> None:
         super(APNsKeyConnectionPool, self).__init__(
             topic=topic,
             max_connections=max_connections,
@@ -490,7 +501,7 @@ class APNsKeyConnectionPool(APNsBaseConnectionPool):
         with open(key_file) as f:
             self.key = f.read()
 
-    async def create_connection(self):
+    async def create_connection(self) -> APNsBaseClientProtocol:
         auth_provider = JWTAuthorizationHeaderProvider(
             key=self.key, key_id=self.key_id, team_id=self.team_id
         )
