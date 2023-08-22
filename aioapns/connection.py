@@ -354,33 +354,31 @@ class APNsBaseConnectionPool:
         for connection in self.connections:
             if not connection.is_busy:
                 return connection
-        else:
-            await self._lock.acquire()
+
+        async with self._lock:
             for connection in self.connections:
                 if not connection.is_busy:
-                    self._lock.release()
                     return connection
             if len(self.connections) < self.max_connections:
                 try:
                     connection = await self.create_connection()
                 except Exception as e:
                     logger.error("Could not connect to server: %s", str(e))
-                    self._lock.release()
                     raise ConnectionError()
                 self.connections.append(connection)
                 logger.info(
                     "Connection established (total: %d)", len(self.connections)
                 )
-                self._lock.release()
                 return connection
-            else:
-                self._lock.release()
-                logger.warning("Pool is busy, wait...")
-                while True:
-                    await asyncio.sleep(0.01)
-                    for connection in self.connections:
-                        if not connection.is_busy:
-                            return connection
+
+        logger.warning(
+            "Pool is completely busy and has hit max connections, retrying..."
+        )
+        while True:
+            await asyncio.sleep(0.01)
+            for connection in self.connections:
+                if not connection.is_busy:
+                    return connection
 
     async def send_notification(
         self, request: NotificationRequest
