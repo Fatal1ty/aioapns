@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, Optional
 from uuid import uuid4
@@ -48,17 +49,19 @@ class NotificationRequest:
 
 
 class NotificationResult:
-    __slots__ = ("notification_id", "status", "description")
+    __slots__ = ("notification_id", "status", "description", "timestamp")
 
     def __init__(
         self,
         notification_id: str,
         status: str,
         description: Optional[str] = None,
+        timestamp: Optional[datetime] = None
     ):
         self.notification_id = notification_id
         self.status = status
         self.description = description
+        self.timestamp = timestamp
 
     @property
     def is_successful(self) -> bool:

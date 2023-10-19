@@ -2,6 +2,7 @@ import asyncio
 import json
 import ssl
 import time
+from datetime import datetime
 from functools import partial
 from typing import Any, Callable, Dict, List, NoReturn, Optional, Type
 
@@ -266,6 +267,16 @@ class APNsBaseClientProtocol(H2Protocol):
     def on_data_received(self, raw_data: bytes, stream_id: int) -> None:
         data = json.loads(raw_data.decode())
         reason = data.get("reason", "")
+        timestamp = data.get("timestamp", None)
+        if timestamp:
+            try:
+                # According to the docs "timestamp" is "represented in milliseconds since Epoch"
+                # so we divide by 1000.0 to get the POSIX time (seconds) but still keep precision
+                # Docs: https://developer.apple.com/documentation/usernotifications/setting_up_a_remote_notification_server/handling_notification_responses_from_apns#3394529
+                timestamp = datetime.fromtimestamp(int(timestamp) / 1000.0)
+            except Exception:
+                timestamp = None
+
         if not reason:
             return
 
@@ -276,7 +287,7 @@ class APNsBaseClientProtocol(H2Protocol):
                 # TODO: Теоретически здесь может быть ошибка, если нет ключа
                 status = self.request_statuses.pop(notification_id)
                 result = NotificationResult(
-                    notification_id, status, description=reason
+                    notification_id, status, description=reason, timestamp=timestamp
                 )
                 request.set_result(result)
             else:
