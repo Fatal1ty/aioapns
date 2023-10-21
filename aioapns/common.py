@@ -1,5 +1,4 @@
 import asyncio
-from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, Optional
 from uuid import uuid4
@@ -56,7 +55,7 @@ class NotificationResult:
         notification_id: str,
         status: str,
         description: Optional[str] = None,
-        timestamp: Optional[datetime] = None
+        timestamp: Optional[int] = None
     ):
         self.notification_id = notification_id
         self.status = status

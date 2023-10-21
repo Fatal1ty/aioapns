@@ -2,7 +2,6 @@ import asyncio
 import json
 import ssl
 import time
-from datetime import datetime, timezone
 from functools import partial
 from typing import Any, Callable, Dict, List, NoReturn, Optional, Type
 
@@ -268,15 +267,6 @@ class APNsBaseClientProtocol(H2Protocol):
         data = json.loads(raw_data.decode())
         reason = data.get("reason", "")
         timestamp = data.get("timestamp")
-        if timestamp:
-            try:
-                # According to the docs "timestamp" is
-                # "represented in milliseconds since Epoch"
-                # so we divide by 1000.0 to get the POSIX
-                # time (seconds) but still keep precision
-                timestamp = datetime.fromtimestamp(timestamp / 1000.0, timezone.utc)
-            except Exception:
-                timestamp = None
 
         if not reason:
             return
