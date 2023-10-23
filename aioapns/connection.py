@@ -266,6 +266,8 @@ class APNsBaseClientProtocol(H2Protocol):
     def on_data_received(self, raw_data: bytes, stream_id: int) -> None:
         data = json.loads(raw_data.decode())
         reason = data.get("reason", "")
+        timestamp = data.get("timestamp")
+
         if not reason:
             return
 
@@ -276,7 +278,10 @@ class APNsBaseClientProtocol(H2Protocol):
                 # TODO: Теоретически здесь может быть ошибка, если нет ключа
                 status = self.request_statuses.pop(notification_id)
                 result = NotificationResult(
-                    notification_id, status, description=reason
+                    notification_id,
+                    status,
+                    description=reason,
+                    timestamp=timestamp,
                 )
                 request.set_result(result)
             else:

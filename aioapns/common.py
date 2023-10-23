@@ -48,17 +48,19 @@ class NotificationRequest:
 
 
 class NotificationResult:
-    __slots__ = ("notification_id", "status", "description")
+    __slots__ = ("notification_id", "status", "description", "timestamp")
 
     def __init__(
         self,
         notification_id: str,
         status: str,
         description: Optional[str] = None,
+        timestamp: Optional[int] = None,
     ):
         self.notification_id = notification_id
         self.status = status
         self.description = description
+        self.timestamp = timestamp
 
     @property
     def is_successful(self) -> bool:
