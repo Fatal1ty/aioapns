@@ -55,7 +55,7 @@ class NotificationResult:
         notification_id: str,
         status: str,
         description: Optional[str] = None,
-        timestamp: Optional[int] = None
+        timestamp: Optional[int] = None,
     ):
         self.notification_id = notification_id
         self.status = status
