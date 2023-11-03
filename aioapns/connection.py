@@ -180,8 +180,12 @@ class APNsBaseClientProtocol(H2Protocol):
             (":path", "/3/device/%s" % request.device_token),
             ("host", self.APNS_SERVER),
             ("apns-id", request.notification_id),
-            ("apns-topic", self.apns_topic),
         ]
+        if request.apns_topic is not None:
+            apns_topic = request.apns_topic
+        else:
+            apns_topic = self.apns_topic
+        headers.append(("apns-topic", apns_topic))
         if request.time_to_live is not None:
             expiration = int(time.time()) + request.time_to_live
             headers.append(("apns-expiration", str(expiration)))
