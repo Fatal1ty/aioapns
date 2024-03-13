@@ -21,9 +21,9 @@ from h2.exceptions import FlowControlError, NoAvailableStreamIDError
 from h2.settings import ChangedSetting, SettingCodes
 
 try:
-    from uvloop.loop import _SSLProtocolTransport as UvloopSSL
+    from uvloop.loop import _SSLProtocolTransport as UvloopSSLTransport
 except ImportError:
-    UvloopSSL = asyncio.Transport
+    UvloopSSLTransport = None
 
 from aioapns.common import (
     APNS_RESPONSE_CODE,
@@ -93,7 +93,10 @@ class H2Protocol(asyncio.Protocol):
         self.free_channels = ChannelPool(1000)
 
     def connection_made(self, transport: asyncio.BaseTransport) -> None:
-        assert isinstance(transport, (asyncio.Transport, UvloopSSL))
+        if UvloopSSLTransport is not None:
+            assert isinstance(transport, (asyncio.Transport, UvloopSSLTransport))
+        else:
+            assert isinstance(transport, asyncio.Transport)
         self.transport = transport
         self.conn.initiate_connection()
         self.flush()
