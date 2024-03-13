@@ -94,7 +94,10 @@ class H2Protocol(asyncio.Protocol):
 
     def connection_made(self, transport: asyncio.BaseTransport) -> None:
         if UvloopSSLTransport is not None:
-            assert isinstance(transport, (asyncio.Transport, UvloopSSLTransport))
+            assert isinstance(transport, (
+                asyncio.Transport,
+                UvloopSSLTransport
+            ))
         else:
             assert isinstance(transport, asyncio.Transport)
         self.transport = transport
