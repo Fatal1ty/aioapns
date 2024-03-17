@@ -180,10 +180,7 @@ class APNsBaseClientProtocol(H2Protocol):
             ("host", self.APNS_SERVER),
             ("apns-id", request.notification_id),
         ]
-        if request.apns_topic is not None:
-            apns_topic = request.apns_topic
-        else:
-            apns_topic = self.apns_topic
+        apns_topic = request.apns_topic or self.apns_topic
         headers.append(("apns-topic", apns_topic))
         if request.time_to_live is not None:
             expiration = int(time.time()) + request.time_to_live
