@@ -4,7 +4,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="aioapns",
-    version="3.1",
+    version="3.2",
     description="An efficient APNs Client Library for Python/asyncio",
     long_description=open("README.rst").read(),
     platforms="all",
@@ -14,8 +14,6 @@ setup(
         "Operating System :: MacOS :: MacOS X",
         "Operating System :: POSIX",
         "Programming Language :: Python :: 3 :: Only",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
