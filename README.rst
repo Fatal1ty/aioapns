@@ -18,7 +18,7 @@ via Apple Push Notification Service. aioapns provides an efficient client throug
 asynchronous HTTP2 protocol for use with Python's ``asyncio``
 framework.
 
-aioapns requires Python 3.6 or later.
+aioapns requires Python 3.8 or later.
 
 
 Performance
