@@ -88,8 +88,7 @@ class H2Protocol(asyncio.Protocol):
         self.free_channels = ChannelPool(1000)
 
     def connection_made(self, transport: asyncio.BaseTransport) -> None:
-        assert isinstance(transport, asyncio.Transport)
-        self.transport = transport
+        self.transport = transport  # type: ignore
         self.conn.initiate_connection()
         self.flush()
 
