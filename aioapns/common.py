@@ -26,6 +26,7 @@ class NotificationRequest:
         "priority",
         "collapse_key",
         "push_type",
+        "apns_topic",
     )
 
     def __init__(
@@ -37,6 +38,8 @@ class NotificationRequest:
         priority: Optional[int] = None,
         collapse_key: Optional[str] = None,
         push_type: Optional[PushType] = None,
+        *,
+        apns_topic: Optional[str] = None,
     ) -> None:
         self.device_token = device_token
         self.message = message
@@ -45,6 +48,7 @@ class NotificationRequest:
         self.priority = priority
         self.collapse_key = collapse_key
         self.push_type = push_type
+        self.apns_topic = apns_topic
 
 
 class NotificationResult:
