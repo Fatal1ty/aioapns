@@ -45,7 +45,7 @@ class APNs:
             )
         elif key and key_id and team_id and topic:
             self.pool = APNsKeyConnectionPool(
-                key_file=key,
+                key=key,
                 key_id=key_id,
                 team_id=team_id,
                 topic=topic,
