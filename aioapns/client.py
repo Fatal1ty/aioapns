@@ -23,6 +23,8 @@ class APNs:
         use_sandbox: bool = False,
         no_cert_validation: bool = False,
         ssl_context: Optional[SSLContext] = None,
+        proxy_host: Optional[str] = None,
+        proxy_port: Optional[int] = None,
         err_func: Optional[
             Callable[
                 [NotificationRequest, NotificationResult], Awaitable[None]
@@ -42,6 +44,8 @@ class APNs:
                 use_sandbox=use_sandbox,
                 no_cert_validation=no_cert_validation,
                 ssl_context=ssl_context,
+                proxy_host=proxy_host,
+                proxy_port=proxy_port,
             )
         elif key and key_id and team_id and topic:
             self.pool = APNsKeyConnectionPool(

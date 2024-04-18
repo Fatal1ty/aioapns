@@ -439,6 +439,8 @@ class APNsCertConnectionPool(APNsBaseConnectionPool):
         use_sandbox: bool = False,
         no_cert_validation: bool = False,
         ssl_context: Optional[ssl.SSLContext] = None,
+        proxy_host: Optional[str] = None,
+        proxy_port: Optional[int] = None,
     ) -> None:
         super(APNsCertConnectionPool, self).__init__(
             topic=topic,
@@ -462,6 +464,9 @@ class APNsCertConnectionPool(APNsBaseConnectionPool):
                 )
                 self.apns_topic = cert.get_subject().UID
 
+        self.proxy_host = proxy_host
+        self.proxy_port = proxy_port
+
     async def create_connection(self) -> APNsBaseClientProtocol:
         apns_protocol_factory = partial(
             self.protocol_class,
@@ -469,17 +474,38 @@ class APNsCertConnectionPool(APNsBaseConnectionPool):
             self.loop,
             self.discard_connection,
         )
+
+        if self.proxy_host and self.proxy_port:
+            return await self._create_proxy_connection(apns_protocol_factory)
+        else:
+            return await self._create_connection(apns_protocol_factory)
+
+    async def _create_proxy_connection(
+        self, apns_protocol_factory
+    ) -> APNsBaseClientProtocol:
         _, protocol = await self.loop.create_connection(
             protocol_factory=partial(
-                ProxyClientProtocol,
+                HttpProxyProtocol,
                 self.protocol_class.APNS_SERVER,
                 self.protocol_class.APNS_PORT,
                 self.loop,
                 self.ssl_context,
                 apns_protocol_factory,
             ),
-            host="localhost",
-            port=3128,
+            host=self.proxy_host,
+            port=self.proxy_port,
+        )
+        await protocol.ssl_ready.wait()
+        return protocol.apns_protocol
+
+    async def _create_connection(
+        self, apns_protocol_factory
+    ) -> APNsBaseClientProtocol:
+        _, protocol = await self.loop.create_connection(
+            protocol_factory=apns_protocol_factory,
+            host=self.protocol_class.APNS_SERVER,
+            port=self.protocol_class.APNS_PORT,
+            ssl=self.ssl_context,
         )
         return protocol
 
@@ -530,22 +556,23 @@ class APNsKeyConnectionPool(APNsBaseConnectionPool):
         return protocol
 
 
-class ProxyClientProtocol(asyncio.Protocol):
+class HttpProxyProtocol(asyncio.Protocol):
     def __init__(
         self,
-        host: str,
-        port: int,
+        apns_host: str,
+        apns_port: int,
         loop: asyncio.AbstractEventLoop,
         ssl_context: ssl.SSLContext,
         protocol_factory,
     ):
-        self.host = host
-        self.port = port
+        self.apns_host = apns_host
+        self.apns_port = apns_port
         self.buffer = bytearray()
         self.loop = loop
         self.ssl_context = ssl_context
-        self.protocol_factory = protocol_factory
-        self.protocol = None
+        self.apns_protocol_factory = protocol_factory
+        self.apns_protocol = None
+        self.transport = None
         self.ssl_ready = asyncio.Event()  # Event to signal SSL readiness
 
     def connection_made(self, transport):
@@ -553,7 +580,7 @@ class ProxyClientProtocol(asyncio.Protocol):
             "Proxy connection made.",
         )
         self.transport = transport
-        connect_request = f"CONNECT {self.host}:{self.port} HTTP/1.1\r\nHost: {self.host}\r\nConnection: close\r\n\r\n"
+        connect_request = f"CONNECT {self.apns_host}:{self.apns_port} HTTP/1.1\r\nHost: {self.apns_host}\r\nConnection: close\r\n\r\n"
         self.transport.write(connect_request.encode("utf-8"))
 
     def data_received(self, data):
@@ -586,18 +613,14 @@ class ProxyClientProtocol(asyncio.Protocol):
             "Upgrading to SSL...",
         )
         sock = self.transport.get_extra_info("socket")
-        _, self.protocol = await self.loop.create_connection(
-            self.protocol_factory,
-            server_hostname=self.host,
+        _, self.apns_protocol = await self.loop.create_connection(
+            self.apns_protocol_factory,
+            server_hostname=self.apns_host,
             ssl=self.ssl_context,
             sock=sock,
         )
 
         self.ssl_ready.set()  # Signal that SSL is ready
-
-    async def send_notification(self, request: NotificationRequest):
-        await self.ssl_ready.wait()
-        return await self.protocol.send_notification(request)
 
     def connection_lost(self, exc):
         logger.debug(
