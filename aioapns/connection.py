@@ -463,16 +463,23 @@ class APNsCertConnectionPool(APNsBaseConnectionPool):
                 self.apns_topic = cert.get_subject().UID
 
     async def create_connection(self) -> APNsBaseClientProtocol:
+        apns_protocol_factory = partial(
+            self.protocol_class,
+            self.apns_topic,
+            self.loop,
+            self.discard_connection,
+        )
         _, protocol = await self.loop.create_connection(
             protocol_factory=partial(
-                self.protocol_class,
-                self.apns_topic,
+                ProxyClientProtocol,
+                self.protocol_class.APNS_SERVER,
+                self.protocol_class.APNS_PORT,
                 self.loop,
-                self.discard_connection,
+                self.ssl_context,
+                apns_protocol_factory,
             ),
-            host=self.protocol_class.APNS_SERVER,
-            port=self.protocol_class.APNS_PORT,
-            ssl=self.ssl_context,
+            host="localhost",
+            port=3128,
         )
         return protocol
 
@@ -521,3 +528,79 @@ class APNsKeyConnectionPool(APNsBaseConnectionPool):
             ssl=self.ssl_context,
         )
         return protocol
+
+
+class ProxyClientProtocol(asyncio.Protocol):
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        loop: asyncio.AbstractEventLoop,
+        ssl_context: ssl.SSLContext,
+        protocol_factory,
+    ):
+        self.host = host
+        self.port = port
+        self.buffer = bytearray()
+        self.loop = loop
+        self.ssl_context = ssl_context
+        self.protocol_factory = protocol_factory
+        self.protocol = None
+        self.ssl_ready = asyncio.Event()  # Event to signal SSL readiness
+
+    def connection_made(self, transport):
+        logger.debug(
+            "Proxy connection made.",
+        )
+        self.transport = transport
+        connect_request = f"CONNECT {self.host}:{self.port} HTTP/1.1\r\nHost: {self.host}\r\nConnection: close\r\n\r\n"
+        self.transport.write(connect_request.encode("utf-8"))
+
+    def data_received(self, data):
+        # Data is usually received in bytes, so you might want to decode or process it
+        logger.debug("Raw data received: %s", data)
+        self.buffer.extend(data)
+
+        # Example of printing decoded data
+        if b"\r\n\r\n" in self.buffer:  # Assuming HTTP-like protocol
+            request_end = self.buffer.index(b"\r\n\r\n") + 4
+            print(
+                "Complete message received:",
+                self.buffer[:request_end].decode("utf-8"),
+            )
+            # Clear buffer or process as needed
+            del self.buffer[:request_end]
+        if b"HTTP/1.1 200 Connection established" in data:
+            logger.debug(
+                "Proxy tunnel established.",
+            )
+            asyncio.create_task(self.upgrade_to_ssl())
+        else:
+            logger.debug(
+                "Data received (before SSL upgrade): %s", data.decode()
+            )
+
+    async def upgrade_to_ssl(self):
+        # Wrap the existing transport in SSL
+        logger.debug(
+            "Upgrading to SSL...",
+        )
+        sock = self.transport.get_extra_info("socket")
+        _, self.protocol = await self.loop.create_connection(
+            self.protocol_factory,
+            server_hostname=self.host,
+            ssl=self.ssl_context,
+            sock=sock,
+        )
+
+        self.ssl_ready.set()  # Signal that SSL is ready
+
+    async def send_notification(self, request: NotificationRequest):
+        await self.ssl_ready.wait()
+        return await self.protocol.send_notification(request)
+
+    def connection_lost(self, exc):
+        logger.debug(
+            "Proxy connection lost.",
+        )
+        self.transport.close()
