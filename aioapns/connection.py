@@ -495,7 +495,7 @@ class APNsCertConnectionPool(APNsBaseConnectionPool):
             host=self.proxy_host,
             port=self.proxy_port,
         )
-        await protocol.ssl_ready.wait()
+        await protocol.apns_connection_ready.wait()
         return protocol.apns_protocol
 
     async def _create_connection(
@@ -521,6 +521,8 @@ class APNsKeyConnectionPool(APNsBaseConnectionPool):
         max_connection_attempts: int = 5,
         use_sandbox: bool = False,
         ssl_context: Optional[ssl.SSLContext] = None,
+        proxy_host: Optional[str] = None,
+        proxy_port: Optional[int] = None,
     ) -> None:
         super(APNsKeyConnectionPool, self).__init__(
             topic=topic,
@@ -537,18 +539,51 @@ class APNsKeyConnectionPool(APNsBaseConnectionPool):
         with open(key_file) as f:
             self.key = f.read()
 
+        self.proxy_host = proxy_host
+        self.proxy_port = proxy_port
+
     async def create_connection(self) -> APNsBaseClientProtocol:
         auth_provider = JWTAuthorizationHeaderProvider(
             key=self.key, key_id=self.key_id, team_id=self.team_id
         )
-        _, protocol = await self.loop.create_connection(
-            protocol_factory=partial(
+        apns_protocol_factory = (
+            partial(
                 self.protocol_class,
                 self.apns_topic,
                 self.loop,
                 self.discard_connection,
                 auth_provider,
             ),
+        )
+
+        if self.proxy_host and self.proxy_port:
+            return await self._create_proxy_connection(apns_protocol_factory)
+        else:
+            return await self._create_connection(apns_protocol_factory)
+
+    async def _create_proxy_connection(
+        self, apns_protocol_factory
+    ) -> APNsBaseClientProtocol:
+        _, protocol = await self.loop.create_connection(
+            protocol_factory=partial(
+                HttpProxyProtocol,
+                self.protocol_class.APNS_SERVER,
+                self.protocol_class.APNS_PORT,
+                self.loop,
+                self.ssl_context,
+                apns_protocol_factory,
+            ),
+            host=self.proxy_host,
+            port=self.proxy_port,
+        )
+        await protocol.apns_connection_ready.wait()
+        return protocol.apns_protocol
+
+    async def _create_connection(
+        self, apns_protocol_factory
+    ) -> APNsBaseClientProtocol:
+        _, protocol = await self.loop.create_connection(
+            protocol_factory=apns_protocol_factory,
             host=self.protocol_class.APNS_SERVER,
             port=self.protocol_class.APNS_PORT,
             ssl=self.ssl_context,
@@ -573,7 +608,9 @@ class HttpProxyProtocol(asyncio.Protocol):
         self.apns_protocol_factory = protocol_factory
         self.apns_protocol = None
         self.transport = None
-        self.ssl_ready = asyncio.Event()  # Event to signal SSL readiness
+        self.apns_connection_ready = (
+            asyncio.Event()
+        )  # Event to signal SSL readiness
 
     def connection_made(self, transport):
         logger.debug(
@@ -588,29 +625,21 @@ class HttpProxyProtocol(asyncio.Protocol):
         logger.debug("Raw data received: %s", data)
         self.buffer.extend(data)
 
-        # Example of printing decoded data
-        if b"\r\n\r\n" in self.buffer:  # Assuming HTTP-like protocol
-            request_end = self.buffer.index(b"\r\n\r\n") + 4
-            print(
-                "Complete message received:",
-                self.buffer[:request_end].decode("utf-8"),
-            )
-            # Clear buffer or process as needed
-            del self.buffer[:request_end]
         if b"HTTP/1.1 200 Connection established" in data:
             logger.debug(
                 "Proxy tunnel established.",
             )
-            asyncio.create_task(self.upgrade_to_ssl())
+            asyncio.create_task(self.create_apns_connection())
         else:
             logger.debug(
-                "Data received (before SSL upgrade): %s", data.decode()
+                "Data received (before APNs connection upgrade): %s",
+                data.decode(),
             )
 
-    async def upgrade_to_ssl(self):
-        # Wrap the existing transport in SSL
+    async def create_apns_connection(self):
+        # Use the existing transport to create a new APNs connection
         logger.debug(
-            "Upgrading to SSL...",
+            "Initiation APNs connection.",
         )
         sock = self.transport.get_extra_info("socket")
         _, self.apns_protocol = await self.loop.create_connection(
@@ -620,7 +649,7 @@ class HttpProxyProtocol(asyncio.Protocol):
             sock=sock,
         )
 
-        self.ssl_ready.set()  # Signal that SSL is ready
+        self.apns_connection_ready.set()  # Signal that APNs connection is ready
 
     def connection_lost(self, exc):
         logger.debug(
