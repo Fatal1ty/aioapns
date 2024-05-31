@@ -610,7 +610,7 @@ class HttpProxyProtocol(asyncio.Protocol):
         self.transport = None
         self.apns_connection_ready = (
             asyncio.Event()
-        )  # Event to signal SSL readiness
+        )  # Event to signal APNs readiness
 
     def connection_made(self, transport):
         logger.debug(
@@ -624,22 +624,22 @@ class HttpProxyProtocol(asyncio.Protocol):
         # Data is usually received in bytes, so you might want to decode or process it
         logger.debug("Raw data received: %s", data)
         self.buffer.extend(data)
-
-        if b"HTTP/1.1 200 Connection established" in data:
+        # some proxies send "HTTP/1.1 200 Connection established" others "HTTP/1.1 200 Connected"
+        if b"HTTP/1.1 200 Connect" in data:
             logger.debug(
                 "Proxy tunnel established.",
             )
             asyncio.create_task(self.create_apns_connection())
         else:
             logger.debug(
-                "Data received (before APNs connection upgrade): %s",
+                "Data received (before APNs connection establishment): %s",
                 data.decode(),
             )
 
     async def create_apns_connection(self):
         # Use the existing transport to create a new APNs connection
         logger.debug(
-            "Initiation APNs connection.",
+            "Initiating APNs connection.",
         )
         sock = self.transport.get_extra_info("socket")
         _, self.apns_protocol = await self.loop.create_connection(

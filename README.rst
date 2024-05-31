@@ -36,6 +36,7 @@ Features
 * Ability to set priority for notifications
 * Ability to set collapse-key for notifications
 * Ability to use production or development APNs server
+* Support for basic HTTP-Proxies
 
 
 Installation

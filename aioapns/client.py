@@ -57,6 +57,8 @@ class APNs:
                 max_connection_attempts=max_connection_attempts,
                 use_sandbox=use_sandbox,
                 ssl_context=ssl_context,
+                proxy_host=proxy_host,
+                proxy_port=proxy_port,
             )
         else:
             raise ValueError(
