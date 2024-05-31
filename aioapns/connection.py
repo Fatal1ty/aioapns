@@ -617,14 +617,18 @@ class HttpProxyProtocol(asyncio.Protocol):
             "Proxy connection made.",
         )
         self.transport = transport
-        connect_request = f"CONNECT {self.apns_host}:{self.apns_port} HTTP/1.1\r\nHost: {self.apns_host}\r\nConnection: close\r\n\r\n"
+        connect_request = (f"CONNECT {self.apns_host}:{self.apns_port}"
+                           f"HTTP/1.1\r\nHost: "
+                           f"{self.apns_host}\r\nConnection: close\r\n\r\n")
         self.transport.write(connect_request.encode("utf-8"))
 
     def data_received(self, data):
-        # Data is usually received in bytes, so you might want to decode or process it
+        # Data is usually received in bytes,
+        # so you might want to decode or process it
         logger.debug("Raw data received: %s", data)
         self.buffer.extend(data)
-        # some proxies send "HTTP/1.1 200 Connection established" others "HTTP/1.1 200 Connected"
+        # some proxies send "HTTP/1.1 200 Connection established"
+        # others "HTTP/1.1 200 Connected"
         if b"HTTP/1.1 200 Connect" in data:
             logger.debug(
                 "Proxy tunnel established.",
@@ -648,8 +652,8 @@ class HttpProxyProtocol(asyncio.Protocol):
             ssl=self.ssl_context,
             sock=sock,
         )
-
-        self.apns_connection_ready.set()  # Signal that APNs connection is ready
+        # Signal that APNs connection is ready
+        self.apns_connection_ready.set()
 
     def connection_lost(self, exc):
         logger.debug(
