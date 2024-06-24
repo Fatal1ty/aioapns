@@ -435,7 +435,7 @@ class APNsBaseConnectionPool:
         raise MaxAttemptsExceeded
 
     async def _create_proxy_connection(
-            self, apns_protocol_factory
+        self, apns_protocol_factory
     ) -> APNsBaseClientProtocol:
         assert self.proxy_host is not None, "proxy_host must be set"
         assert self.proxy_port is not None, "proxy_port must be set"
@@ -454,8 +454,9 @@ class APNsBaseConnectionPool:
         )
         await protocol.apns_connection_ready.wait()
 
-        assert protocol.apns_protocol is not None, \
-            "protocol.apns_protocol could not be set"
+        assert (
+            protocol.apns_protocol is not None
+        ), "protocol.apns_protocol could not be set"
         return protocol.apns_protocol
 
 
@@ -471,7 +472,6 @@ class APNsCertConnectionPool(APNsBaseConnectionPool):
         ssl_context: Optional[ssl.SSLContext] = None,
         proxy_host: Optional[str] = None,
         proxy_port: Optional[int] = None,
-
     ) -> None:
         super(APNsCertConnectionPool, self).__init__(
             topic=topic,
@@ -479,7 +479,7 @@ class APNsCertConnectionPool(APNsBaseConnectionPool):
             max_connection_attempts=max_connection_attempts,
             use_sandbox=use_sandbox,
             proxy_host=proxy_host,
-            proxy_port=proxy_port
+            proxy_port=proxy_port,
         )
 
         self.cert_file = cert_file
@@ -542,7 +542,7 @@ class APNsKeyConnectionPool(APNsBaseConnectionPool):
             max_connection_attempts=max_connection_attempts,
             use_sandbox=use_sandbox,
             proxy_host=proxy_host,
-            proxy_port=proxy_port
+            proxy_port=proxy_port,
         )
 
         self.ssl_context = ssl_context or ssl.create_default_context()
@@ -610,9 +610,11 @@ class HttpProxyProtocol(asyncio.Protocol):
             "Proxy connection made.",
         )
         self.transport = transport
-        connect_request = (f"CONNECT {self.apns_host}:{self.apns_port} "
-                           f"HTTP/1.1\r\nHost: "
-                           f"{self.apns_host}\r\nConnection: close\r\n\r\n")
+        connect_request = (
+            f"CONNECT {self.apns_host}:{self.apns_port} "
+            f"HTTP/1.1\r\nHost: "
+            f"{self.apns_host}\r\nConnection: close\r\n\r\n"
+        )
         self.transport.write(connect_request.encode("utf-8"))
 
     def data_received(self, data):
