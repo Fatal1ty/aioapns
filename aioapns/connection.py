@@ -557,14 +557,12 @@ class APNsKeyConnectionPool(APNsBaseConnectionPool):
         auth_provider = JWTAuthorizationHeaderProvider(
             key=self.key, key_id=self.key_id, team_id=self.team_id
         )
-        apns_protocol_factory = (
-            partial(
-                self.protocol_class,
-                self.apns_topic,
-                self.loop,
-                self.discard_connection,
-                auth_provider,
-            ),
+        apns_protocol_factory = partial(
+            self.protocol_class,
+            self.apns_topic,
+            self.loop,
+            self.discard_connection,
+            auth_provider,
         )
 
         if self.proxy_host and self.proxy_port:
