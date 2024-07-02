@@ -525,7 +525,7 @@ class APNsCertConnectionPool(APNsBaseConnectionPool):
 class APNsKeyConnectionPool(APNsBaseConnectionPool):
     def __init__(
         self,
-        key_file: str,
+        key: str,
         key_id: str,
         team_id: str,
         topic: str,
@@ -547,11 +547,9 @@ class APNsKeyConnectionPool(APNsBaseConnectionPool):
 
         self.ssl_context = ssl_context or ssl.create_default_context()
 
+        self.key = key
         self.key_id = key_id
         self.team_id = team_id
-
-        with open(key_file) as f:
-            self.key = f.read()
 
     async def create_connection(self) -> APNsBaseClientProtocol:
         auth_provider = JWTAuthorizationHeaderProvider(
