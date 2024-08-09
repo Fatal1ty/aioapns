@@ -50,6 +50,9 @@ class NotificationRequest:
         self.push_type = push_type
         self.apns_topic = apns_topic
 
+    def __repr__(self) -> str:
+        return str({k: v for k, v in self.__dict__.items() if k in self.__slots__})
+
 
 class NotificationResult:
     __slots__ = ("notification_id", "status", "description", "timestamp")
@@ -69,6 +72,9 @@ class NotificationResult:
     @property
     def is_successful(self) -> bool:
         return self.status == APNS_RESPONSE_CODE.SUCCESS
+
+    def __repr__(self) -> str:
+        return str({k: v for k, v in self.__dict__.items() if k in self.__slots__})
 
 
 class DynamicBoundedSemaphore(asyncio.BoundedSemaphore):
