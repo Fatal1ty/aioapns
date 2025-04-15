@@ -335,6 +335,7 @@ class APNsBaseConnectionPool:
         use_sandbox: bool = False,
         proxy_host: Optional[str] = None,
         proxy_port: Optional[int] = None,
+        use_alternative_port: bool = False,
     ) -> None:
         self.apns_topic = topic
         self.max_connections = max_connections
@@ -343,6 +344,9 @@ class APNsBaseConnectionPool:
             self.protocol_class = APNsDevelopmentClientProtocol
         else:
             self.protocol_class = APNsProductionClientProtocol
+        if use_alternative_port:
+            # The same alternative port adopted by apns2
+            self.protocol_class.APNS_PORT = 2197
 
         self.loop = asyncio.get_event_loop()
         self.connections: List[APNsBaseClientProtocol] = []
@@ -477,6 +481,7 @@ class APNsCertConnectionPool(APNsBaseConnectionPool):
         ssl_context: Optional[ssl.SSLContext] = None,
         proxy_host: Optional[str] = None,
         proxy_port: Optional[int] = None,
+        use_alternative_port: bool = False,
     ) -> None:
         super(APNsCertConnectionPool, self).__init__(
             topic=topic,
@@ -485,6 +490,7 @@ class APNsCertConnectionPool(APNsBaseConnectionPool):
             use_sandbox=use_sandbox,
             proxy_host=proxy_host,
             proxy_port=proxy_port,
+            use_alternative_port=use_alternative_port,
         )
 
         self.cert_file = cert_file
@@ -540,6 +546,7 @@ class APNsKeyConnectionPool(APNsBaseConnectionPool):
         ssl_context: Optional[ssl.SSLContext] = None,
         proxy_host: Optional[str] = None,
         proxy_port: Optional[int] = None,
+        use_alternative_port: bool = False,
     ) -> None:
         super(APNsKeyConnectionPool, self).__init__(
             topic=topic,
@@ -548,6 +555,7 @@ class APNsKeyConnectionPool(APNsBaseConnectionPool):
             use_sandbox=use_sandbox,
             proxy_host=proxy_host,
             proxy_port=proxy_port,
+            use_alternative_port=use_alternative_port,
         )
 
         self.ssl_context = ssl_context or ssl.create_default_context()

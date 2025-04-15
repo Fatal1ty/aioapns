@@ -30,6 +30,7 @@ class APNs:
                 [NotificationRequest, NotificationResult], Awaitable[None]
             ]
         ] = None,
+        use_alternative_port: bool = False,
     ) -> None:
         self.pool: APNsBaseConnectionPool
         self.err_func = err_func
@@ -46,6 +47,7 @@ class APNs:
                 ssl_context=ssl_context,
                 proxy_host=proxy_host,
                 proxy_port=proxy_port,
+                use_alternative_port=use_alternative_port,
             )
         elif key and key_id and team_id and topic:
             self.pool = APNsKeyConnectionPool(
@@ -59,6 +61,7 @@ class APNs:
                 ssl_context=ssl_context,
                 proxy_host=proxy_host,
                 proxy_port=proxy_port,
+                use_alternative_port=use_alternative_port,
             )
         else:
             raise ValueError(
