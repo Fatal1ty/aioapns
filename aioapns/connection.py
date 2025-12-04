@@ -101,6 +101,7 @@ class H2Protocol(asyncio.Protocol):
                 self.on_data_received(
                     event.data, event.stream_id  # type: ignore
                 )
+                self.conn.acknowledge_received_data(event.flow_controlled_length, event.stream_id)
             elif isinstance(event, RemoteSettingsChanged):
                 self.on_remote_settings_changed(
                     event.changed_settings  # type: ignore
