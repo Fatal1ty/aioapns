@@ -434,7 +434,7 @@ class APNsBaseConnectionPool:
                     "Got FlowControlError for notification %s",
                     request.notification_id,
                 )
-                await asyncio.sleep(1)
+            await asyncio.sleep(1)
         logger.error("Failed to send after %d attempts.", attempts)
         raise MaxAttemptsExceeded
 
